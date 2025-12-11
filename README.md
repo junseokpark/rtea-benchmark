@@ -51,10 +51,42 @@ output/
    - JET: `/home/sasidharp/jet_docker/jet.sif`
    - TEProf2: `/home/sasidharp/jet_docker/teprof2.sif`
 
-3. **Reference files (adjust paths in scripts):**
+3. **Reference files:**
    - `${REF}/reference.fa` - Reference genome
-   - `${REF}/TE_annotation.bed` or `TE_annotation.gtf` - TE annotations
+   - `${REF}/TE_annotation.gff` - TE annotations in GFF format
    - `${REF}/gene_annotation.gtf` - Gene annotations
+   - `${REF}/repeats.txt` - Repeat elements file
+   - `${REF}/STAR_indexes/` - STAR genome indexes directory
+
+4. **JET dependencies:**
+   - JET installation directory
+   - Samtools binary directory
+   - STAR binary directory
+   - R library path
+
+## Configuration
+
+Before running the pipeline, you should configure the paths specific to your environment:
+
+**Step 1: Create configuration file**
+```bash
+cd scripts
+cp config_template.sh config.sh
+```
+
+**Step 2: Edit config.sh and update these required paths:**
+- `JETProjectDir` - Path to JET installation
+- `samtoolsBinDir` - Path to samtools binary directory
+- `starBinDir` - Path to STAR binary directory
+- `RlibDir` - Path to R library for JET Step 2
+- Update reference file paths if different from defaults
+- Adjust sequencing parameters (read length, organism, genome)
+
+**Step 3: Validate configuration**
+```bash
+source config.sh
+validate_config
+```
 
 ## Usage
 
@@ -120,8 +152,9 @@ Edit SBATCH parameters in the scripts:
 ### Modify Tool Parameters
 
 **For JET:**
-Edit the `run_jet()` function in the scripts to adjust:
-- BWA-MEM alignment parameters
+Edit the `run_jet_step1()` and `run_jet_step2()` functions in the scripts to adjust:
+- STAR alignment parameters
+- Read length and organism settings
 - Detection thresholds
 - Output formats
 
@@ -133,21 +166,36 @@ Edit the `run_teprof2()` function to adjust:
 
 ### Update Reference Paths
 
-Modify these variables in the scripts:
-```bash
-DATA_HOME=/home/junseokp/workspaces/data/rTea-simul
-REF=${DATA_HOME}/ref
-OUTPUT_BASE=${DATA_HOME}/output
-```
+Configuration paths are now managed in `scripts/config.sh`. See the Configuration section above for details.
 
 ## Monitoring and Troubleshooting
 
 ### Check Progress
 
+Use the improved status checker that monitors both JET steps separately:
 ```bash
-# Count completed jobs
-ls output/*/JET/*/results.txt | wc -l
-ls output/*/TEProf2/*/results.txt | wc -l
+cd scripts
+chmod +x check_status.sh
+./check_status.sh
+```
+
+The status report will show:
+- JET Step 1 (STAR alignment) completion status
+- JET Step 2 (R analysis) completion status
+- TEProf2 completion status
+- Breakdown by TE type and coverage
+- List of failed samples
+
+You can also check manually:
+```bash
+# Count completed alignments (JET Step 1)
+find output -name "Aligned.sortedByCoord.out.bam" | wc -l
+
+# Count completed JET Step 2 results
+find output -name "*_TE_insertions.bed" | wc -l
+
+# Count TEProf2 results
+find output -type d -name "TEProf2" | wc -l
 
 # Check for errors in logs
 grep -i "error" logs/*.err

@@ -6,6 +6,8 @@ This package contains a complete pipeline for processing transposable element (T
 
 ## Package Contents
 
+All scripts are located in the `scripts/` directory.
+
 ### Main Scripts
 
 1. **pipeline.sh** - Master control script
@@ -15,64 +17,83 @@ This package contains a complete pipeline for processing transposable element (T
    - Commands: help, setup, check-config, list, submit, status, resubmit, validate
 
 2. **process_array.sh** - SLURM array job script (RECOMMENDED)
-   - Processes all samples in parallel
+   - Processes all samples in parallel using STAR aligner
    - Uses array jobs for efficient HPC resource utilization
    - Automatically scales to your sample count
-   - Runs both JET and TEProf2 on each sample
+   - Runs JET (Step 1 & 2) and TEProf2 on each sample
 
 3. **process_samples.sh** - Sequential processing script
    - Alternative to array jobs
    - Processes samples one by one
    - Useful for smaller datasets or non-HPC environments
 
+### Configuration
+
+4. **config_template.sh** - Configuration template
+   - Template for environment-specific settings
+   - Copy to config.sh and customize paths
+   - Contains JET and TEProf2 configuration
+   - Includes validation function
+
 ### Helper Scripts
 
-4. **generate_sample_list.sh** - Sample discovery
+5. **generate_sample_list.sh** - Sample discovery
    - Scans your data directory
    - Creates sample_list.txt with all paired-end FASTQ files
    - Organizes by TE type, tissue, and coverage
 
-5. **check_status.sh** - Progress monitoring
+6. **check_status.sh** - Progress monitoring
    - Generates detailed status reports
+   - Tracks JET Step 1 (STAR alignment) separately from Step 2 (R analysis)
    - Shows completion percentage for each tool
    - Breaks down results by category and coverage
    - Identifies failed samples
 
-6. **resubmit_failed.sh** - Failure recovery
+7. **resubmit_failed.sh** - Failure recovery
    - Identifies incomplete or failed samples
    - Creates a resubmission script automatically
    - Allows targeted reprocessing without redoing successful samples
+
+8. **runTools.sh** - Tool execution wrapper
+   - Helper script for running tools in containers
 
 ### Documentation
 
 7. **README.md** - Comprehensive documentation
    - Detailed usage instructions
-   - Configuration guidelines
+   - Configuration guidelines with config_template.sh
    - Troubleshooting tips
    - Expected output formats
 
-8. **QUICKSTART.txt** - Quick reference guide
-   - Step-by-step workflow
-   - Common commands
-   - Timeline estimates
+9. **SUMMARY.md** (this file) - Complete package overview
+   - Lists all scripts and their purposes
+   - Quick start guide
    - Resource requirements
 
-## Quick Start (3 Steps)
+## Quick Start (4 Steps)
 
-### Step 1: Setup
+### Step 1: Configure
+```bash
+cd scripts
+cp config_template.sh config.sh
+# Edit config.sh with your paths
+nano config.sh
+```
+
+### Step 2: Setup
 ```bash
 chmod +x pipeline.sh
 ./pipeline.sh setup
 ./pipeline.sh check-config
 ```
 
-### Step 2: Generate Sample List and Submit
+### Step 3: Generate Sample List and Submit
 ```bash
 ./pipeline.sh list
 ./pipeline.sh submit
 ```
 
-### Step 3: Monitor and Verify
+### Step 4: Monitor and Verify
 ```bash
 # Check status periodically
 ./pipeline.sh status
