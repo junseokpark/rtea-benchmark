@@ -1,0 +1,225 @@
+#!/bin/bash
+
+# Quick Start Guide for TE Analysis Pipeline
+# This script demonstrates the complete workflow
+
+cat << 'EOF'
+╔════════════════════════════════════════════════════════════════════╗
+║                TE Analysis Pipeline - Quick Start                  ║
+║                                                                    ║
+║  Tools: JET + TEProf2                                             ║
+║  Processing: ~200 samples (nonReferenceTE + referenceTE)          ║
+╚════════════════════════════════════════════════════════════════════╝
+
+WORKFLOW STEPS:
+================
+
+Step 1: Review Configuration
+----------------------------
+Before starting, verify these settings in the scripts:
+
+  DATA_HOME=/home/junseokp/workspaces/data/rTea-simul
+  REF=${DATA_HOME}/ref
+  OUTPUT_BASE=${DATA_HOME}/output
+  
+  JET=/home/sasidharp/jet_docker/jet.sif
+  TEProf2=/home/sasidharp/jet_docker/teprof2.sif
+
+Required reference files:
+  - ${REF}/reference.fa
+  - ${REF}/TE_annotation.bed (or .gtf)
+  - ${REF}/gene_annotation.gtf
+
+Step 2: Generate Sample List
+----------------------------
+Create a list of all samples to process:
+
+  chmod +x generate_sample_list.sh
+  ./generate_sample_list.sh
+
+This creates: sample_list.txt (~200 samples)
+
+Step 3: Choose Processing Method
+--------------------------------
+
+OPTION A - Array Job (RECOMMENDED for HPC):
+  
+  1. Check total samples:
+     wc -l sample_list.txt
+     
+  2. Edit process_array.sh, update line:
+     #SBATCH --array=1-N%20
+     (where N = number from step 1, minus 1 for header)
+     
+  3. Make executable:
+     chmod +x process_array.sh
+     
+  4. Submit job:
+     sbatch process_array.sh
+     
+  5. Monitor:
+     squeue -u $USER
+     watch -n 60 'squeue -u $USER'
+
+OPTION B - Sequential Processing (slower):
+  
+  1. Make executable:
+     chmod +x process_samples.sh
+     
+  2. Submit:
+     sbatch process_samples.sh
+     
+     OR run interactively:
+     ./process_samples.sh
+
+Step 4: Monitor Progress
+------------------------
+While jobs are running:
+
+  # Check job status
+  squeue -u $USER
+  
+  # Check recent logs
+  tail -f logs/TE_array_*.out
+  
+  # Check for errors
+  grep -i error logs/*.err | tail -20
+  
+  # Count completed samples
+  find output -name "*.sorted.bam" | wc -l
+
+Step 5: Verify Completion
+-------------------------
+After jobs finish:
+
+  chmod +x check_status.sh
+  ./check_status.sh
+
+This generates a detailed status report showing:
+  - Total samples processed
+  - Success/failure counts for each tool
+  - Breakdown by TE type and coverage
+
+Step 6: Handle Failures (if any)
+--------------------------------
+If some samples failed:
+
+  1. Identify failed samples:
+     chmod +x resubmit_failed.sh
+     ./resubmit_failed.sh
+     
+  2. This creates:
+     - failed_samples_*.txt (list of failures)
+     - resubmit_failed_*.sh (resubmission script)
+     
+  3. Resubmit:
+     sbatch resubmit_failed_*.sh
+     
+  4. Re-check status:
+     ./check_status.sh
+
+Step 7: Analyze Results
+-----------------------
+Results are organized as:
+
+  output/
+  ├── nonReferenceTE/{TE_type}/{coverage}/
+  │   ├── JET/{sample_name}/
+  │   │   ├── {sample}.sorted.bam
+  │   │   ├── polymorphic_insertions.bed
+  │   │   └── TE_expression.tsv
+  │   └── TEProf2/{sample_name}/
+  │       ├── TE_counts.tsv
+  │       └── insertion_sites.bed
+  └── referenceTE/{intron|TSS}/{coverage}/{fq|fq_mut}/
+      └── [same structure as above]
+
+QUICK COMMANDS:
+===============
+
+# List all samples
+cat sample_list.txt | grep -v "^#" | wc -l
+
+# Count outputs by tool
+find output -type f -name "*.sorted.bam" | wc -l  # JET
+find output -type d -name "TEProf2" | wc -l        # TEProf2
+
+# Check disk usage
+du -sh output/
+
+# Find specific sample results
+find output -name "*blood*" -type d
+
+# Check log for specific sample
+grep "sim200_AluY_blood" logs/*.out
+
+TROUBLESHOOTING:
+================
+
+Problem: Jobs pending/not starting
+Solution: Check cluster load with 'sinfo' and 'squeue'
+
+Problem: Out of memory errors
+Solution: Increase --mem in SBATCH directives (e.g., --mem=64G)
+
+Problem: Missing reference files
+Solution: Verify paths and permissions in ${REF}/
+
+Problem: Singularity container not found
+Solution: 
+  - Check container paths exist
+  - Run: module load singularity
+  - Test: singularity exec ${JET} --version
+
+Problem: Tool-specific errors
+Solution: Check tool documentation:
+  - JET: https://github.com/junseokpark/JET_identification_pipeline
+  - TEProf2: https://github.com/junseokpark/TEProf2Paper
+
+EXPECTED TIMELINE:
+==================
+
+Array Job (20 concurrent):
+  - Setup: 5 minutes
+  - Processing: 10-20 hours
+  - Verification: 5 minutes
+  Total: ~1 day
+
+Sequential:
+  - Setup: 5 minutes
+  - Processing: 400-1400 hours
+  - Verification: 5 minutes
+  Total: ~17-58 days
+
+RESOURCE USAGE:
+===============
+
+Per Sample:
+  - Memory: ~32 GB
+  - CPUs: 8 cores
+  - Time: 2-7 hours
+  - Disk: ~5-20 GB
+
+Total (200 samples):
+  - Disk space: ~1-4 TB
+  - CPU hours: ~3,200-11,200
+
+NEXT STEPS:
+===========
+
+After successful completion:
+  1. Backup results
+  2. Run downstream analysis
+  3. Generate summary statistics
+  4. Compare results between tools
+  5. Visualize TE insertion patterns
+
+For more details, see: README.md
+
+═══════════════════════════════════════════════════════════════════════
+
+Ready to start? Run this command:
+
+  ./generate_sample_list.sh && echo "Sample list created! Next: edit and submit process_array.sh"
+
+EOF
