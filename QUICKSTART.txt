@@ -14,26 +14,31 @@ cat << 'EOF'
 WORKFLOW STEPS:
 ================
 
-Step 1: Review Configuration
+Step 1: Configure Environment
 ----------------------------
-Before starting, verify these settings in the scripts:
+Create and customize your configuration file:
 
-  DATA_HOME=/home/junseokp/workspaces/data/rTea-simul
-  REF=${DATA_HOME}/ref
-  OUTPUT_BASE=${DATA_HOME}/output
-  
-  JET=/home/sasidharp/jet_docker/jet.sif
-  TEProf2=/home/sasidharp/jet_docker/teprof2.sif
+  cd scripts
+  cp config_template.sh config.sh
+  nano config.sh  # or vim, emacs, etc.
 
-Required reference files:
-  - ${REF}/reference.fa
-  - ${REF}/TE_annotation.bed (or .gtf)
-  - ${REF}/gene_annotation.gtf
+Update these REQUIRED paths in config.sh:
+  - JETProjectDir (Path to JET installation)
+  - samtoolsBinDir (Path to samtools/bin)
+  - starBinDir (Path to STAR/bin)
+  - RlibDir (Path to R library)
+  - Update reference file paths if needed
+  - Adjust read length, organism, genome if different
+
+Verify configuration:
+  source config.sh
+  validate_config
 
 Step 2: Generate Sample List
 ----------------------------
 Create a list of all samples to process:
 
+  cd scripts
   chmod +x generate_sample_list.sh
   ./generate_sample_list.sh
 
@@ -86,18 +91,22 @@ While jobs are running:
   grep -i error logs/*.err | tail -20
   
   # Count completed samples
-  find output -name "*.sorted.bam" | wc -l
+  find output -name "Aligned.sortedByCoord.out.bam" | wc -l  # JET Step 1
+  find output -name "*_TE_insertions.bed" | wc -l            # JET Step 2
 
 Step 5: Verify Completion
 -------------------------
-After jobs finish:
+After jobs finish, use the enhanced status checker:
 
+  cd scripts
   chmod +x check_status.sh
   ./check_status.sh
 
 This generates a detailed status report showing:
   - Total samples processed
-  - Success/failure counts for each tool
+  - JET Step 1 (STAR alignment) success/failure counts
+  - JET Step 2 (R analysis) success/failure counts
+  - TEProf2 success/failure counts
   - Breakdown by TE type and coverage
 
 Step 6: Handle Failures (if any)
@@ -214,12 +223,17 @@ After successful completion:
   4. Compare results between tools
   5. Visualize TE insertion patterns
 
-For more details, see: README.md
+For more details, see: README.md and SUMMARY.md
+
+IMPORTANT: All scripts are now located in the scripts/ directory.
 
 ═══════════════════════════════════════════════════════════════════════
 
-Ready to start? Run this command:
+Ready to start? Run these commands:
 
+  cd scripts
+  cp config_template.sh config.sh
+  nano config.sh  # Fill in your paths
   ./generate_sample_list.sh && echo "Sample list created! Next: edit and submit process_array.sh"
 
 EOF

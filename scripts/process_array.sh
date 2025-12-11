@@ -10,13 +10,28 @@
 
 # Configuration
 DATA_HOME=/home/junseokp/workspaces/data/rTea-simul
-REF=${DATA_HOME}/ref
 OUTPUT_BASE=${DATA_HOME}/output
 
-JET=/home/sasidharp/jet_docker/jet.sif
+# JET Configuration
+JETProjectDir=/path/to/JET  # UPDATE THIS PATH
+samtoolsBinDir=/path/to/samtools/bin  # UPDATE THIS PATH
+starBinDir=/path/to/STAR/bin  # UPDATE THIS PATH
+readLength=150  # UPDATE if different
+organism="human"  # UPDATE if different
+genome="hg38"  # UPDATE if different
+database="database_name"  # UPDATE THIS
+refDir=${DATA_HOME}/ref
+fastaFile=${refDir}/reference.fa
+gtfGeneFile=${refDir}/gene_annotation.gtf
+starIndexesDir=${refDir}/STAR_indexes
+repeatsFile=${refDir}/repeats.txt
+gffFile=${refDir}/TE_annotation.gff
+RlibDir=/path/to/R/library  # UPDATE THIS PATH
+threads=8
+
+# TEProf2 Configuration
 TEProf2=/home/sasidharp/jet_docker/teprof2.sif
 
-THREADS=8
 SAMPLE_LIST="sample_list.txt"
 
 module load singularity
@@ -25,7 +40,6 @@ module load singularity
 mkdir -p logs
 
 # Get sample info from array task ID
-# Skip header line, get line number matching array task ID
 SAMPLE_INFO=$(sed -n "$((SLURM_ARRAY_TASK_ID + 1))p" ${SAMPLE_LIST})
 
 # Parse sample information
@@ -34,9 +48,11 @@ FQ1=$(echo ${SAMPLE_INFO} | awk '{print $2}')
 FQ2=$(echo ${SAMPLE_INFO} | awk '{print $3}')
 REL_PATH=$(echo ${SAMPLE_INFO} | awk '{print $4}')
 
-# Create output directory
-OUTPUT_DIR="${OUTPUT_BASE}/${REL_PATH}"
-mkdir -p "${OUTPUT_DIR}/JET" "${OUTPUT_DIR}/TEProf2"
+# Create output directory for this sample
+dataDir="${OUTPUT_BASE}/${REL_PATH}/${SAMPLE_NAME}"
+mkdir -p "${dataDir}"
+mkdir -p "${dataDir}/log"
+mkdir -p "${dataDir}/err"
 
 echo "========================================="
 echo "Array Job ID: ${SLURM_ARRAY_TASK_ID}"
@@ -44,52 +60,91 @@ echo "Processing sample: ${SAMPLE_NAME}"
 echo "Input files:"
 echo "  R1: ${FQ1}"
 echo "  R2: ${FQ2}"
-echo "Output directory: ${OUTPUT_DIR}"
+echo "Output directory: ${dataDir}"
 echo "========================================="
 
-# Function to run JET
-run_jet() {
-    echo "[$(date)] Starting JET analysis..."
+# Create metadata file for this sample
+metaFile="${dataDir}/metadata.txt"
+echo -e "sample\tfastq1\tfastq2" > ${metaFile}
+echo -e "${SAMPLE_NAME}\t${FQ1}\t${FQ2}" >> ${metaFile}
+
+# Function to run JET Step 1
+run_jet_step1() {
+    echo "[$(date)] Starting JET Step 1 - STAR Alignment..."
     
-    # JET Step 1: Alignment with BWA-MEM
-    echo "[$(date)] Step 1: Alignment..."
-    singularity exec ${JET} bwa mem -t ${THREADS} \
-        ${REF}/reference.fa \
-        ${FQ1} ${FQ2} | \
-        singularity exec ${JET} samtools view -bS - | \
-        singularity exec ${JET} samtools sort -@ ${THREADS} \
-        -o "${OUTPUT_DIR}/JET/${SAMPLE_NAME}.sorted.bam"
+    outputsDir="${dataDir}/output"
+    logDir="${dataDir}/log"
+    logFile="${logDir}/step1_multisample_running_$(date +'%Y%m%d').log"
+    
+    mkdir -p ${outputsDir}
+    
+    echo -e "\e[1m${dataDir}\t${metaFile}\e[0m" > "${logFile}"
+    
+    # Execute JET Step 1
+    executeCMD="${JETProjectDir}/Step1_pipelineJETs_STAR.sh \
+        --samtools ${samtoolsBinDir} \
+        --star ${starBinDir} \
+        --read-length ${readLength} \
+        --organism ${organism} \
+        --genome ${genome} \
+        --database ${database} \
+        --ref-dir ${refDir} \
+        --fasta ${fastaFile} \
+        --gtf ${gtfGeneFile} \
+        --threads ${threads} \
+        --meta ${metaFile} \
+        --data-dir ${dataDir} \
+        --output ${outputsDir}"
+    
+    echo $executeCMD >> "${logFile}"
+    eval $executeCMD
     
     if [ $? -ne 0 ]; then
-        echo "ERROR: BWA alignment failed for ${SAMPLE_NAME}"
+        echo "ERROR: JET Step 1 failed for ${SAMPLE_NAME}" | tee -a "${logFile}"
         return 1
     fi
     
-    # Index BAM file
-    echo "[$(date)] Indexing BAM file..."
-    singularity exec ${JET} samtools index "${OUTPUT_DIR}/JET/${SAMPLE_NAME}.sorted.bam"
+    echo "[$(date)] JET Step 1 completed successfully" | tee -a "${logFile}"
+    return 0
+}
+
+# Function to run JET Step 2
+run_jet_step2() {
+    echo "[$(date)] Starting JET Step 2 - R Analysis..."
+    
+    outputsDir="${dataDir}/output"
+    logDir="${dataDir}/log"
+    ErrorDir="${dataDir}/err"
+    logFile="${logDir}/step2_multisample_running_$(date +'%Y%m%d').log"
+    
+    echo -e "\e[1m${dataDir}\t${metaFile}\e[0m" > "${logFile}"
+    
+    # Execute JET Step 2
+    executeCMD="${JETProjectDir}/Step2_pipelineJETs_R.sh \
+        --jetprojectdir ${JETProjectDir} \
+        --data-dir ${dataDir} \
+        --outputs-dir ${outputsDir} \
+        --log-dir ${logDir} \
+        --star-dir ${starIndexesDir} \
+        --metadata ${metaFile} \
+        --error-dir ${ErrorDir} \
+        --read-length ${readLength} \
+        --organism ${organism} \
+        --genome ${genome} \
+        --database ${database} \
+        --rlib-dir ${RlibDir} \
+        --repeats-file ${repeatsFile} \
+        --gff-file ${gffFile}"
+    
+    echo $executeCMD >> "${logFile}"
+    eval $executeCMD
     
     if [ $? -ne 0 ]; then
-        echo "ERROR: BAM indexing failed for ${SAMPLE_NAME}"
+        echo "ERROR: JET Step 2 failed for ${SAMPLE_NAME}" | tee -a "${logFile}"
         return 1
     fi
     
-    # JET Step 2: TE Detection
-    echo "[$(date)] Step 2: TE Detection..."
-    singularity exec ${JET} python /JET/identify_polymorphic_insertions.py \
-        -i "${OUTPUT_DIR}/JET/${SAMPLE_NAME}.sorted.bam" \
-        -r ${REF}/reference.fa \
-        -g ${REF}/gene_annotation.gtf \
-        -t ${REF}/TE_annotation.bed \
-        -o "${OUTPUT_DIR}/JET/${SAMPLE_NAME}" \
-        -p ${THREADS}
-    
-    if [ $? -ne 0 ]; then
-        echo "ERROR: JET TE detection failed for ${SAMPLE_NAME}"
-        return 1
-    fi
-    
-    echo "[$(date)] JET analysis completed successfully"
+    echo "[$(date)] JET Step 2 completed successfully" | tee -a "${logFile}"
     return 0
 }
 
@@ -97,15 +152,19 @@ run_jet() {
 run_teprof2() {
     echo "[$(date)] Starting TEProf2 analysis..."
     
-    # TEProf2 processing
+    teprof2_output="${dataDir}/TEProf2"
+    mkdir -p "${teprof2_output}"
+    
+    # TODO: Update with actual TEProf2 command structure
+    # This is a placeholder - please provide the actual TEProf2 command
     singularity exec ${TEProf2} teprof2 \
         --fq1 ${FQ1} \
         --fq2 ${FQ2} \
-        --ref ${REF}/reference.fa \
-        --te-annot ${REF}/TE_annotation.gtf \
-        --gene-annot ${REF}/gene_annotation.gtf \
-        --output-dir "${OUTPUT_DIR}/TEProf2/${SAMPLE_NAME}" \
-        --threads ${THREADS} \
+        --ref ${refDir}/reference.fa \
+        --te-annot ${refDir}/TE_annotation.gtf \
+        --gene-annot ${refDir}/gene_annotation.gtf \
+        --output-dir "${teprof2_output}" \
+        --threads ${threads} \
         --min-mapq 20 \
         --min-base-quality 20
     
@@ -118,9 +177,17 @@ run_teprof2() {
     return 0
 }
 
-# Run JET
-run_jet
-JET_STATUS=$?
+# Run JET Step 1
+run_jet_step1
+JET_STEP1_STATUS=$?
+
+# Run JET Step 2 (only if Step 1 succeeded)
+if [ ${JET_STEP1_STATUS} -eq 0 ]; then
+    run_jet_step2
+    JET_STEP2_STATUS=$?
+else
+    JET_STEP2_STATUS=1
+fi
 
 # Run TEProf2
 run_teprof2
@@ -131,12 +198,13 @@ echo ""
 echo "========================================="
 echo "Processing Summary for ${SAMPLE_NAME}"
 echo "========================================="
-echo "JET Status: $([ ${JET_STATUS} -eq 0 ] && echo 'SUCCESS' || echo 'FAILED')"
+echo "JET Step 1 Status: $([ ${JET_STEP1_STATUS} -eq 0 ] && echo 'SUCCESS' || echo 'FAILED')"
+echo "JET Step 2 Status: $([ ${JET_STEP2_STATUS} -eq 0 ] && echo 'SUCCESS' || echo 'FAILED')"
 echo "TEProf2 Status: $([ ${TEPROF2_STATUS} -eq 0 ] && echo 'SUCCESS' || echo 'FAILED')"
 echo "========================================="
 
-# Exit with error if either tool failed
-if [ ${JET_STATUS} -ne 0 ] || [ ${TEPROF2_STATUS} -ne 0 ]; then
+# Exit with error if any tool failed
+if [ ${JET_STEP1_STATUS} -ne 0 ] || [ ${JET_STEP2_STATUS} -ne 0 ] || [ ${TEPROF2_STATUS} -ne 0 ]; then
     exit 1
 fi
 

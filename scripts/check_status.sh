@@ -14,23 +14,41 @@ echo "" >> ${REPORT_FILE}
 
 # Counters
 total_samples=0
-jet_complete=0
-jet_failed=0
-jet_missing=0
+jet_step1_complete=0
+jet_step1_failed=0
+jet_step1_missing=0
+jet_step2_complete=0
+jet_step2_failed=0
+jet_step2_missing=0
 teprof2_complete=0
 teprof2_failed=0
 teprof2_missing=0
 
-# Function to check if JET completed successfully
-check_jet() {
-    local output_dir=$1
-    local sample_name=$2
+# Function to check if JET Step 1 completed successfully
+check_jet_step1() {
+    local sample_dir=$1
     
-    # Check for expected output files
-    if [ -f "${output_dir}/JET/${sample_name}.sorted.bam" ] && \
-       [ -f "${output_dir}/JET/${sample_name}.sorted.bam.bai" ]; then
+    # Check for STAR alignment output
+    if [ -f "${sample_dir}/output/Aligned.sortedByCoord.out.bam" ] || \
+       [ -f "${sample_dir}/output/"*"Aligned.sortedByCoord.out.bam" ]; then
         echo "COMPLETE"
-    elif [ -d "${output_dir}/JET" ]; then
+    elif [ -d "${sample_dir}/output" ] && [ -f "${sample_dir}/log/step1_multisample_running_"*".log" ]; then
+        echo "FAILED"
+    else
+        echo "NOT_STARTED"
+    fi
+}
+
+# Function to check if JET Step 2 completed successfully
+check_jet_step2() {
+    local sample_dir=$1
+    
+    # Check for R analysis output
+    if [ -d "${sample_dir}/output" ] && \
+       [ -f "${sample_dir}/log/step2_multisample_running_"*".log" ] && \
+       [ -f "${sample_dir}/output/"*"_results.txt" -o -f "${sample_dir}/output/"*"_TE_insertions.bed" ]; then
+        echo "COMPLETE"
+    elif [ -f "${sample_dir}/log/step2_multisample_running_"*".log" ]; then
         echo "FAILED"
     else
         echo "NOT_STARTED"
@@ -39,14 +57,13 @@ check_jet() {
 
 # Function to check if TEProf2 completed successfully
 check_teprof2() {
-    local output_dir=$1
-    local sample_name=$2
+    local sample_dir=$1
     
     # Check for expected output directory and files
-    if [ -d "${output_dir}/TEProf2/${sample_name}" ] && \
-       [ "$(ls -A ${output_dir}/TEProf2/${sample_name} 2>/dev/null)" ]; then
+    if [ -d "${sample_dir}/TEProf2" ] && \
+       [ "$(ls -A ${sample_dir}/TEProf2 2>/dev/null)" ]; then
         echo "COMPLETE"
-    elif [ -d "${output_dir}/TEProf2" ]; then
+    elif [ -d "${sample_dir}/TEProf2" ]; then
         echo "FAILED"
     else
         echo "NOT_STARTED"
@@ -64,25 +81,40 @@ while IFS=' ' read -r sample_name fq1 fq2 rel_path; do
     fi
     
     total_samples=$((total_samples + 1))
-    output_dir="${OUTPUT_BASE}/${rel_path}"
+    sample_dir="${OUTPUT_BASE}/${rel_path}/${sample_name}"
     
-    # Check JET status
-    jet_status=$(check_jet "$output_dir" "$sample_name")
-    case $jet_status in
+    # Check JET Step 1 status
+    jet_step1_status=$(check_jet_step1 "$sample_dir")
+    case $jet_step1_status in
         "COMPLETE")
-            jet_complete=$((jet_complete + 1))
+            jet_step1_complete=$((jet_step1_complete + 1))
             ;;
         "FAILED")
-            jet_failed=$((jet_failed + 1))
-            echo "JET FAILED: ${sample_name} (${rel_path})" >> ${REPORT_FILE}
+            jet_step1_failed=$((jet_step1_failed + 1))
+            echo "JET STEP1 FAILED: ${sample_name} (${rel_path})" >> ${REPORT_FILE}
             ;;
         "NOT_STARTED")
-            jet_missing=$((jet_missing + 1))
+            jet_step1_missing=$((jet_step1_missing + 1))
+            ;;
+    esac
+    
+    # Check JET Step 2 status
+    jet_step2_status=$(check_jet_step2 "$sample_dir")
+    case $jet_step2_status in
+        "COMPLETE")
+            jet_step2_complete=$((jet_step2_complete + 1))
+            ;;
+        "FAILED")
+            jet_step2_failed=$((jet_step2_failed + 1))
+            echo "JET STEP2 FAILED: ${sample_name} (${rel_path})" >> ${REPORT_FILE}
+            ;;
+        "NOT_STARTED")
+            jet_step2_missing=$((jet_step2_missing + 1))
             ;;
     esac
     
     # Check TEProf2 status
-    teprof2_status=$(check_teprof2 "$output_dir" "$sample_name")
+    teprof2_status=$(check_teprof2 "$sample_dir")
     case $teprof2_status in
         "COMPLETE")
             teprof2_complete=$((teprof2_complete + 1))
@@ -106,10 +138,15 @@ echo "=============================================" >> ${REPORT_FILE}
 echo "" >> ${REPORT_FILE}
 echo "Total Samples: ${total_samples}" >> ${REPORT_FILE}
 echo "" >> ${REPORT_FILE}
-echo "JET Status:" >> ${REPORT_FILE}
-echo "  Complete: ${jet_complete} ($(awk "BEGIN {printf \"%.1f\", ${jet_complete}/${total_samples}*100}")%)" >> ${REPORT_FILE}
-echo "  Failed: ${jet_failed} ($(awk "BEGIN {printf \"%.1f\", ${jet_failed}/${total_samples}*100}")%)" >> ${REPORT_FILE}
-echo "  Not Started: ${jet_missing} ($(awk "BEGIN {printf \"%.1f\", ${jet_missing}/${total_samples}*100}")%)" >> ${REPORT_FILE}
+echo "JET Step 1 Status:" >> ${REPORT_FILE}
+echo "  Complete: ${jet_step1_complete} ($(awk "BEGIN {printf \"%.1f\", ${jet_step1_complete}/${total_samples}*100}")%)" >> ${REPORT_FILE}
+echo "  Failed: ${jet_step1_failed} ($(awk "BEGIN {printf \"%.1f\", ${jet_step1_failed}/${total_samples}*100}")%)" >> ${REPORT_FILE}
+echo "  Not Started: ${jet_step1_missing} ($(awk "BEGIN {printf \"%.1f\", ${jet_step1_missing}/${total_samples}*100}")%)" >> ${REPORT_FILE}
+echo "" >> ${REPORT_FILE}
+echo "JET Step 2 Status:" >> ${REPORT_FILE}
+echo "  Complete: ${jet_step2_complete} ($(awk "BEGIN {printf \"%.1f\", ${jet_step2_complete}/${total_samples}*100}")%)" >> ${REPORT_FILE}
+echo "  Failed: ${jet_step2_failed} ($(awk "BEGIN {printf \"%.1f\", ${jet_step2_failed}/${total_samples}*100}")%)" >> ${REPORT_FILE}
+echo "  Not Started: ${jet_step2_missing} ($(awk "BEGIN {printf \"%.1f\", ${jet_step2_missing}/${total_samples}*100}")%)" >> ${REPORT_FILE}
 echo "" >> ${REPORT_FILE}
 echo "TEProf2 Status:" >> ${REPORT_FILE}
 echo "  Complete: ${teprof2_complete} ($(awk "BEGIN {printf \"%.1f\", ${teprof2_complete}/${total_samples}*100}")%)" >> ${REPORT_FILE}
@@ -164,7 +201,7 @@ echo ""
 echo "Report saved to: ${REPORT_FILE}"
 
 # Check for failed samples
-if [ $jet_failed -gt 0 ] || [ $teprof2_failed -gt 0 ]; then
+if [ $jet_step1_failed -gt 0 ] || [ $jet_step2_failed -gt 0 ] || [ $teprof2_failed -gt 0 ]; then
     echo ""
     echo "WARNING: Some samples failed processing!"
     echo "Review ${REPORT_FILE} for details"
@@ -172,14 +209,17 @@ if [ $jet_failed -gt 0 ] || [ $teprof2_failed -gt 0 ]; then
 fi
 
 # Check if all complete
-if [ $jet_complete -eq $total_samples ] && [ $teprof2_complete -eq $total_samples ]; then
+if [ $jet_step1_complete -eq $total_samples ] && \
+   [ $jet_step2_complete -eq $total_samples ] && \
+   [ $teprof2_complete -eq $total_samples ]; then
     echo ""
     echo "SUCCESS: All samples processed successfully!"
     exit 0
 else
     echo ""
     echo "INFO: Processing incomplete"
-    echo "  JET: ${jet_complete}/${total_samples} complete"
+    echo "  JET Step 1: ${jet_step1_complete}/${total_samples} complete"
+    echo "  JET Step 2: ${jet_step2_complete}/${total_samples} complete"
     echo "  TEProf2: ${teprof2_complete}/${total_samples} complete"
     exit 2
 fi
