@@ -9,18 +9,36 @@
 
 # Configuration
 DATA_HOME=/home/junseokp/workspaces/data/rTea-simul
-REF=${DATA_HOME}/ref
 OUTPUT_BASE=${DATA_HOME}/output
 
-JET=/home/sasidharp/jet_docker/jet.sif
-TEProf2=/home/sasidharp/jet_docker/teprof2.sif
+# JET Configuration
+JETProjectDir=/path/to/JET  # UPDATE THIS PATH
+samtoolsBinDir=/path/to/samtools/bin  # UPDATE THIS PATH
+starBinDir=/path/to/STAR/bin  # UPDATE THIS PATH
+readLength=150  # UPDATE if different
+organism="human"  # UPDATE if different
+genome="hg38"  # UPDATE if different
+database="database_name"  # UPDATE THIS
+refDir=${DATA_HOME}/ref
+fastaFile=${refDir}/reference.fa
+gtfGeneFile=${refDir}/gene_annotation.gtf
+starIndexesDir=${refDir}/STAR_indexes
+repeatsFile=${refDir}/repeats.txt
+gffFile=${refDir}/TE_annotation.gff
+RlibDir=/path/to/R/library  # UPDATE THIS PATH
+threads=8
 
-THREADS=8
+# TEProf2 Configuration
+TEProf2=/home/sasidharp/jet_docker/teprof2.sif
 
 module load singularity
 
 # Create logs directory
 mkdir -p logs
+
+# Source shared functions
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${SCRIPT_DIR}/function.sh"
 
 # Function to extract sample name from fastq file
 get_sample_name() {
@@ -28,58 +46,6 @@ get_sample_name() {
     local basename=$(basename "$fq_file")
     # Remove .1.fq.gz or .2.fq.gz extension
     echo "${basename%.*.fq.gz}"
-}
-
-# Function to process with JET
-run_jet() {
-    local fq1=$1
-    local fq2=$2
-    local output_dir=$3
-    local sample_name=$4
-    
-    echo "Running JET on ${sample_name}..."
-    mkdir -p "${output_dir}/JET"
-    
-    # JET Step 1: Alignment
-    singularity exec ${JET} bwa mem -t ${THREADS} \
-        ${REF}/reference.fa \
-        ${fq1} ${fq2} | \
-        singularity exec ${JET} samtools view -bS - | \
-        singularity exec ${JET} samtools sort -@ ${THREADS} -o "${output_dir}/JET/${sample_name}.sorted.bam"
-    
-    singularity exec ${JET} samtools index "${output_dir}/JET/${sample_name}.sorted.bam"
-    
-    # JET Step 2: TE Detection
-    singularity exec ${JET} python /path/to/JET/scripts/detect_TE.py \
-        -b "${output_dir}/JET/${sample_name}.sorted.bam" \
-        -r ${REF}/reference.fa \
-        -t ${REF}/TE_annotation.bed \
-        -o "${output_dir}/JET/${sample_name}" \
-        -p ${THREADS}
-    
-    echo "JET completed for ${sample_name}"
-}
-
-# Function to process with TEProf2
-run_teprof2() {
-    local fq1=$1
-    local fq2=$2
-    local output_dir=$3
-    local sample_name=$4
-    
-    echo "Running TEProf2 on ${sample_name}..."
-    mkdir -p "${output_dir}/TEProf2"
-    
-    # TEProf2 processing
-    singularity exec ${TEProf2} teprof2 \
-        --fq1 ${fq1} \
-        --fq2 ${fq2} \
-        --ref ${REF}/reference.fa \
-        --te-annot ${REF}/TE_annotation.gtf \
-        --output "${output_dir}/TEProf2/${sample_name}" \
-        --threads ${THREADS}
-    
-    echo "TEProf2 completed for ${sample_name}"
 }
 
 # Function to process a sample pair
@@ -91,25 +57,57 @@ process_sample() {
     # Extract sample name
     local sample_name=$(get_sample_name "$fq1")
     
+    # Set up global variables required by shared functions
+    SAMPLE_NAME=${sample_name}
+    FQ1=${fq1}
+    FQ2=${fq2}
+    
     # Create output directory maintaining original structure
-    local output_dir="${OUTPUT_BASE}/${rel_path}"
-    mkdir -p "${output_dir}"
+    dataDir="${OUTPUT_BASE}/${rel_path}/${sample_name}"
+    mkdir -p "${dataDir}"
+    mkdir -p "${dataDir}/log"
+    mkdir -p "${dataDir}/err"
     
     echo "========================================="
-    echo "Processing sample: ${sample_name}"
+    echo "Processing sample: ${SAMPLE_NAME}"
     echo "Input files:"
-    echo "  R1: ${fq1}"
-    echo "  R2: ${fq2}"
-    echo "Output directory: ${output_dir}"
+    echo "  R1: ${FQ1}"
+    echo "  R2: ${FQ2}"
+    echo "Output directory: ${dataDir}"
     echo "========================================="
     
-    # Run JET
-    run_jet "${fq1}" "${fq2}" "${output_dir}" "${sample_name}"
+    # Create metadata file for this sample
+    metaFile="${dataDir}/metadata.txt"
+    echo -e "sample\tfastq1\tfastq2" > ${metaFile}
+    echo -e "${SAMPLE_NAME}\t${FQ1}\t${FQ2}" >> ${metaFile}
+    
+    # Run JET Step 1
+    run_jet_step1
+    JET_STEP1_STATUS=$?
+    
+    # Run JET Step 2 (only if Step 1 succeeded)
+    if [ ${JET_STEP1_STATUS} -eq 0 ]; then
+        run_jet_step2
+        JET_STEP2_STATUS=$?
+    else
+        JET_STEP2_STATUS=1
+    fi
     
     # Run TEProf2
-    run_teprof2 "${fq1}" "${fq2}" "${output_dir}" "${sample_name}"
+    run_teprof2
+    TEPROF2_STATUS=$?
     
-    echo "Completed processing ${sample_name}"
+    # Summary
+    echo ""
+    echo "========================================="
+    echo "Processing Summary for ${SAMPLE_NAME}"
+    echo "========================================="
+    echo "JET Step 1 Status: $([ ${JET_STEP1_STATUS} -eq 0 ] && echo 'SUCCESS' || echo 'FAILED')"
+    echo "JET Step 2 Status: $([ ${JET_STEP2_STATUS} -eq 0 ] && echo 'SUCCESS' || echo 'FAILED')"
+    echo "TEProf2 Status: $([ ${TEPROF2_STATUS} -eq 0 ] && echo 'SUCCESS' || echo 'FAILED')"
+    echo "========================================="
+    
+    echo "Completed processing ${SAMPLE_NAME}"
     echo ""
 }
 
