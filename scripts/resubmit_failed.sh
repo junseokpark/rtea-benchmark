@@ -1,9 +1,20 @@
 #!/bin/bash
 
 # Resubmit failed or incomplete samples
-DATA_HOME=/home/junseokp/workspaces/data/rTea-simul
-OUTPUT_BASE=${DATA_HOME}/output
-SAMPLE_LIST="sample_list.txt"
+# Configuration is loaded from the shared config.sh file
+
+# Get the directory where this script is located
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Source the shared configuration file
+if [ -f "${SCRIPT_DIR}/config.sh" ]; then
+    source "${SCRIPT_DIR}/config.sh"
+else
+    echo "ERROR: Configuration file not found: ${SCRIPT_DIR}/config.sh"
+    echo "Please create config.sh from config_template.sh and update the paths."
+    exit 1
+fi
+
 FAILED_LIST="failed_samples_$(date +%Y%m%d_%H%M%S).txt"
 
 echo "# Failed/Incomplete Samples - Generated $(date)" > ${FAILED_LIST}
@@ -89,15 +100,22 @@ cat > ${RESUBMIT_SCRIPT} << 'EOF'
 #SBATCH --mem=32G
 #SBATCH --cpus-per-task=8
 
-# Configuration
-DATA_HOME=/home/junseokp/workspaces/data/rTea-simul
-REF=${DATA_HOME}/ref
-OUTPUT_BASE=${DATA_HOME}/output
+# Resubmission script for failed samples
+# Configuration is loaded from the shared config.sh file
+
+# Get the directory where this script is located
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Source the shared configuration file
+if [ -f "${SCRIPT_DIR}/config.sh" ]; then
+    source "${SCRIPT_DIR}/config.sh"
+else
+    echo "ERROR: Configuration file not found: ${SCRIPT_DIR}/config.sh"
+    echo "Please create config.sh from config_template.sh and update the paths."
+    exit 1
+fi
 
 JET=/home/sasidharp/jet_docker/jet.sif
-TEProf2=/home/sasidharp/jet_docker/teprof2.sif
-
-THREADS=8
 FAILED_LIST="FAILED_LIST_FILE"
 
 module load singularity
@@ -130,22 +148,22 @@ if [[ $TOOL_STATUS == *"JET:FAILED"* ]]; then
     rm -rf "${OUTPUT_DIR}/JET/${SAMPLE_NAME}"*
     
     # Run JET
-    singularity exec ${JET} bwa mem -t ${THREADS} \
-        ${REF}/reference.fa \
+    singularity exec ${JET} bwa mem -t ${threads} \
+        ${REF_DIR}/reference.fa \
         ${FQ1} ${FQ2} | \
         singularity exec ${JET} samtools view -bS - | \
-        singularity exec ${JET} samtools sort -@ ${THREADS} \
+        singularity exec ${JET} samtools sort -@ ${threads} \
         -o "${OUTPUT_DIR}/JET/${SAMPLE_NAME}.sorted.bam"
     
     singularity exec ${JET} samtools index "${OUTPUT_DIR}/JET/${SAMPLE_NAME}.sorted.bam"
     
     singularity exec ${JET} python /JET/identify_polymorphic_insertions.py \
         -i "${OUTPUT_DIR}/JET/${SAMPLE_NAME}.sorted.bam" \
-        -r ${REF}/reference.fa \
-        -g ${REF}/gene_annotation.gtf \
-        -t ${REF}/TE_annotation.bed \
+        -r ${REF_DIR}/reference.fa \
+        -g ${REF_DIR}/gene_annotation.gtf \
+        -t ${REF_DIR}/TE_annotation.bed \
         -o "${OUTPUT_DIR}/JET/${SAMPLE_NAME}" \
-        -p ${THREADS}
+        -p ${threads}
 fi
 
 # Check if TEProf2 needs to be rerun
@@ -159,11 +177,11 @@ if [[ $TOOL_STATUS == *"TEProf2:FAILED"* ]]; then
     singularity exec ${TEProf2} teprof2 \
         --fq1 ${FQ1} \
         --fq2 ${FQ2} \
-        --ref ${REF}/reference.fa \
-        --te-annot ${REF}/TE_annotation.gtf \
-        --gene-annot ${REF}/gene_annotation.gtf \
+        --ref ${REF_DIR}/reference.fa \
+        --te-annot ${REF_DIR}/TE_annotation.gtf \
+        --gene-annot ${REF_DIR}/gene_annotation.gtf \
         --output-dir "${OUTPUT_DIR}/TEProf2/${SAMPLE_NAME}" \
-        --threads ${THREADS} \
+        --threads ${threads} \
         --min-mapq 20 \
         --min-base-quality 20
 fi

@@ -1,6 +1,13 @@
 #!/bin/bash
-# JET and TEProf2 Pipeline Configuration
-# Copy this file to config.sh and fill in your actual paths
+# JET and TEProf2 Pipeline Configuration Template
+# 
+# This is a template file. To use it:
+#   1. Copy this file to config.sh: cp config_template.sh config.sh
+#   2. Edit config.sh and update all paths marked with "UPDATE" or "REQUIRED"
+#   3. All pipeline scripts will automatically source config.sh
+#
+# NOTE: Do not edit this template directly. Always work with config.sh
+# so your custom configuration is not overwritten by repository updates.
 
 # ============================================
 # REQUIRED: UPDATE ALL PATHS BELOW
@@ -10,6 +17,9 @@
 export DATA_HOME="/home/junseokp/workspaces/data/rTea-simul"
 export OUTPUT_BASE="${DATA_HOME}/output"
 export REF_DIR="${DATA_HOME}/ref"
+
+# Sample List File
+export SAMPLE_LIST="sample_list.txt"
 
 # ============================================
 # JET Configuration
@@ -29,6 +39,7 @@ export genome="hg38"  # Genome version
 export database="database_name"  # UPDATE: Database name for JET
 
 # Reference Files for JET
+export refDir="${REF_DIR}"  # Reference directory (for compatibility with existing scripts)
 export fastaFile="${REF_DIR}/reference.fa"  # REQUIRED
 export gtfGeneFile="${REF_DIR}/gene_annotation.gtf"  # REQUIRED
 export starIndexesDir="${REF_DIR}/STAR_indexes"  # REQUIRED: STAR index directory
@@ -57,7 +68,8 @@ export TEPROF2_MIN_BASE_QUAL=20
 # Compute Resources
 # ============================================
 
-export THREADS=8
+export threads=8  # Thread count (lowercase for compatibility with existing scripts)
+export THREADS=8  # Thread count (uppercase alternative)
 export MEMORY="32G"
 export WALLTIME="24:00:00"
 export MAX_CONCURRENT_JOBS=20  # For array jobs: --array=1-N%20

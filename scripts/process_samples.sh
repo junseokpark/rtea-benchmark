@@ -7,29 +7,20 @@
 #SBATCH --mem=32G
 #SBATCH --cpus-per-task=8
 
-# Configuration
-DATA_HOME=/home/junseokp/workspaces/data/rTea-simul
-OUTPUT_BASE=${DATA_HOME}/output
+# TE Analysis Pipeline - Sequential Processing
+# Configuration is loaded from the shared config.sh file
 
-# JET Configuration
-JETProjectDir=/path/to/JET  # UPDATE THIS PATH
-samtoolsBinDir=/path/to/samtools/bin  # UPDATE THIS PATH
-starBinDir=/path/to/STAR/bin  # UPDATE THIS PATH
-readLength=150  # UPDATE if different
-organism="human"  # UPDATE if different
-genome="hg38"  # UPDATE if different
-database="database_name"  # UPDATE THIS
-refDir=${DATA_HOME}/ref
-fastaFile=${refDir}/reference.fa
-gtfGeneFile=${refDir}/gene_annotation.gtf
-starIndexesDir=${refDir}/STAR_indexes
-repeatsFile=${refDir}/repeats.txt
-gffFile=${refDir}/TE_annotation.gff
-RlibDir=/path/to/R/library  # UPDATE THIS PATH
-threads=8
+# Get the directory where this script is located
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# TEProf2 Configuration
-TEProf2=/home/sasidharp/jet_docker/teprof2.sif
+# Source the shared configuration file
+if [ -f "${SCRIPT_DIR}/config.sh" ]; then
+    source "${SCRIPT_DIR}/config.sh"
+else
+    echo "ERROR: Configuration file not found: ${SCRIPT_DIR}/config.sh"
+    echo "Please create config.sh from config_template.sh and update the paths."
+    exit 1
+fi
 
 module load singularity
 
@@ -37,7 +28,6 @@ module load singularity
 mkdir -p logs
 
 # Source shared functions
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/function.sh"
 
 # Function to extract sample name from fastq file

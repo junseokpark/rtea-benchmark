@@ -1,11 +1,21 @@
 #!/bin/bash
 
-DATA_HOME=/home/junseokp/workspaces/data/rTea-simul
-REF=${DATA_HOME}/ref
+# Simple tool execution script
+# Configuration is loaded from the shared config.sh file
 
+# Get the directory where this script is located
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Source the shared configuration file
+if [ -f "${SCRIPT_DIR}/config.sh" ]; then
+    source "${SCRIPT_DIR}/config.sh"
+else
+    echo "ERROR: Configuration file not found: ${SCRIPT_DIR}/config.sh"
+    echo "Please create config.sh from config_template.sh and update the paths."
+    exit 1
+fi
 
 JET=/home/sasidharp/jet_docker/jet.sif
-TEProf2=/home/sasidharp/jet_docker/teprof2.sif
 
 module load singularity
 

@@ -1,8 +1,21 @@
 #!/bin/bash
 
 # Generate sample list for array job processing
-DATA_HOME=/home/junseokp/workspaces/data/rTea-simul
-OUTPUT_FILE="sample_list.txt"
+# Configuration is loaded from the shared config.sh file
+
+# Get the directory where this script is located
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Source the shared configuration file
+if [ -f "${SCRIPT_DIR}/config.sh" ]; then
+    source "${SCRIPT_DIR}/config.sh"
+else
+    echo "ERROR: Configuration file not found: ${SCRIPT_DIR}/config.sh"
+    echo "Please create config.sh from config_template.sh and update the paths."
+    exit 1
+fi
+
+OUTPUT_FILE="${SAMPLE_LIST}"
 
 echo "Generating sample list..."
 echo "# Sample_Name FQ1 FQ2 Output_Path" > ${OUTPUT_FILE}
