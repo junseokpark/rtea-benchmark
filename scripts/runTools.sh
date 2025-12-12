@@ -15,8 +15,6 @@ else
     exit 1
 fi
 
-JET=/home/sasidharp/jet_docker/jet.sif
-
 module load singularity
 
 # Execute JET

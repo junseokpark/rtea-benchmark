@@ -50,10 +50,15 @@ export gffFile="${REF_DIR}/TE_annotation.gff"  # REQUIRED: TE annotation in GFF 
 export RlibDir="/path/to/R/library"  # REQUIRED: R library path for JET Step 2
 
 # ============================================
-# TEProf2 Configuration
+# Singularity Container Paths
 # ============================================
 
-export TEProf2="/home/sasidharp/jet_docker/teprof2.sif"  # Singularity container path
+export JET="/home/sasidharp/jet_docker/jet.sif"  # JET Singularity container path
+export TEProf2="/home/sasidharp/jet_docker/teprof2.sif"  # TEProf2 Singularity container path
+
+# ============================================
+# TEProf2 Parameters
+# ============================================
 
 # Reference Files for TEProf2 (can be same as JET if compatible)
 export TEPROF2_REF="${REF_DIR}/reference.fa"

@@ -115,7 +115,6 @@ else
     exit 1
 fi
 
-JET=/home/sasidharp/jet_docker/jet.sif
 FAILED_LIST="FAILED_LIST_FILE"
 
 module load singularity

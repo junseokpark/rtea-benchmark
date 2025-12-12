@@ -110,7 +110,6 @@ cmd_check_config() {
     print_header "Checking configuration"
     
     # Configuration loaded from config.sh
-    JET=/home/sasidharp/jet_docker/jet.sif
     
     errors=0
     
