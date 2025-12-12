@@ -1,9 +1,19 @@
 #!/bin/bash
 
 # Check processing status for all samples
-DATA_HOME=/home/junseokp/workspaces/data/rTea-simul
-OUTPUT_BASE=${DATA_HOME}/output
-SAMPLE_LIST="sample_list.txt"
+# Configuration is loaded from the shared config.sh file
+
+# Get the directory where this script is located
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Source the shared configuration file
+if [ -f "${SCRIPT_DIR}/config.sh" ]; then
+    source "${SCRIPT_DIR}/config.sh"
+else
+    echo "ERROR: Configuration file not found: ${SCRIPT_DIR}/config.sh"
+    echo "Please create config.sh from config_template.sh and update the paths."
+    exit 1
+fi
 
 REPORT_FILE="processing_status_$(date +%Y%m%d_%H%M%S).txt"
 

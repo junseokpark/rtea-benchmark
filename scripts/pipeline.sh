@@ -5,6 +5,15 @@
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+# Source the shared configuration file
+if [ -f "${SCRIPT_DIR}/config.sh" ]; then
+    source "${SCRIPT_DIR}/config.sh"
+else
+    echo "ERROR: Configuration file not found: ${SCRIPT_DIR}/config.sh"
+    echo "Please create config.sh from config_template.sh and update the paths."
+    exit 1
+fi
+
 # Color codes for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -100,10 +109,7 @@ cmd_setup() {
 cmd_check_config() {
     print_header "Checking configuration"
     
-    DATA_HOME=/home/junseokp/workspaces/data/rTea-simul
-    REF=${DATA_HOME}/ref
-    JET=/home/sasidharp/jet_docker/jet.sif
-    TEProf2=/home/sasidharp/jet_docker/teprof2.sif
+    # Configuration loaded from config.sh
     
     errors=0
     
@@ -116,10 +122,10 @@ cmd_check_config() {
     fi
     
     # Check REF directory
-    if [ -d "$REF" ]; then
-        print_success "Reference directory exists: $REF"
+    if [ -d "$REF_DIR" ]; then
+        print_success "Reference directory exists: $REF_DIR"
     else
-        print_warning "Reference directory not found: $REF"
+        print_warning "Reference directory not found: $REF_DIR"
         print_info "You may need to create this directory and add reference files"
     fi
     
@@ -281,7 +287,7 @@ cmd_resubmit() {
 cmd_clean() {
     print_header "Cleaning output directory"
     
-    OUTPUT_BASE=/home/junseokp/workspaces/data/rTea-simul/output
+    # OUTPUT_BASE loaded from config.sh
     
     if [ ! -d "$OUTPUT_BASE" ]; then
         print_info "Output directory does not exist: $OUTPUT_BASE"
@@ -326,7 +332,7 @@ cmd_clean_logs() {
 cmd_summary() {
     print_header "Generating processing summary"
     
-    OUTPUT_BASE=/home/junseokp/workspaces/data/rTea-simul/output
+    # OUTPUT_BASE loaded from config.sh
     
     if [ ! -d "$OUTPUT_BASE" ]; then
         print_error "Output directory not found: $OUTPUT_BASE"
@@ -354,7 +360,7 @@ cmd_validate() {
     
     print_info "Validating file integrity..."
     
-    OUTPUT_BASE=/home/junseokp/workspaces/data/rTea-simul/output
+    # OUTPUT_BASE loaded from config.sh
     
     # Check for corrupted BAM files
     corrupted=0

@@ -66,6 +66,8 @@ output/
 
 ## Configuration
 
+All pipeline scripts now load their configuration from a shared `config.sh` file, which centralizes all environment variables and paths in one place.
+
 Before running the pipeline, you should configure the paths specific to your environment:
 
 **Step 1: Create configuration file**
@@ -75,10 +77,12 @@ cp config_template.sh config.sh
 ```
 
 **Step 2: Edit config.sh and update these required paths:**
+- `DATA_HOME` - Base directory for input data
 - `JETProjectDir` - Path to JET installation
 - `samtoolsBinDir` - Path to samtools binary directory
 - `starBinDir` - Path to STAR binary directory
 - `RlibDir` - Path to R library for JET Step 2
+- `TEProf2` - Path to TEProf2 singularity container
 - Update reference file paths if different from defaults
 - Adjust sequencing parameters (read length, organism, genome)
 
@@ -87,6 +91,8 @@ cp config_template.sh config.sh
 source config.sh
 validate_config
 ```
+
+**Note:** The `config.sh` file is user-specific and is excluded from version control (via `.gitignore`). This allows you to maintain your custom configuration without affecting the repository. All pipeline scripts (`check_status.sh`, `generate_sample_list.sh`, `process_array.sh`, `process_samples.sh`, `resubmit_failed.sh`, `pipeline.sh`, and `runTools.sh`) automatically source this configuration file.
 
 ## Usage
 

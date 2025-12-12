@@ -5,6 +5,9 @@ tools/
 data/
 ref/
 
+# User-specific configuration
+scripts/config.sh
+
 # ----------------------------------------------------------------------
 # Python cache and temporary files
 # ----------------------------------------------------------------------
