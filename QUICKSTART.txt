@@ -23,10 +23,10 @@ Create and customize your configuration file:
   nano config.sh  # or vim, emacs, etc.
 
 Update these REQUIRED paths in config.sh:
-  - JETProjectDir (Path to JET installation)
-  - samtoolsBinDir (Path to samtools/bin)
-  - starBinDir (Path to STAR/bin)
-  - RlibDir (Path to R library)
+  - JET2 (Path to JET singularity image, e.g., /path/to/jet.sif)
+  - samtoolsBinDir (Path within singularity image, default: /opt/samtools/bin)
+  - starBinDir (Path within singularity image, default: /opt/STAR/bin)
+  - RlibDir (Path within singularity image, default: /opt/R/library)
   - Update reference file paths if needed
   - Adjust read length, organism, genome if different
 

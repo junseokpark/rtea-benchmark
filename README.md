@@ -59,10 +59,8 @@ output/
    - `${REF}/STAR_indexes/` - STAR genome indexes directory
 
 4. **JET dependencies:**
-   - JET installation directory
-   - Samtools binary directory
-   - STAR binary directory
-   - R library path
+   - JET singularity image (e.g., `/home/sasidharp/jet_docker/jet.sif`)
+   - Tool paths are configured within the singularity image
 
 ## Configuration
 
@@ -75,10 +73,10 @@ cp config_template.sh config.sh
 ```
 
 **Step 2: Edit config.sh and update these required paths:**
-- `JETProjectDir` - Path to JET installation
-- `samtoolsBinDir` - Path to samtools binary directory
-- `starBinDir` - Path to STAR binary directory
-- `RlibDir` - Path to R library for JET Step 2
+- `JET2` - Path to JET singularity image (e.g., /path/to/jet.sif)
+- `samtoolsBinDir` - Path to samtools binary directory within singularity image (default: /opt/samtools/bin)
+- `starBinDir` - Path to STAR binary directory within singularity image (default: /opt/STAR/bin)
+- `RlibDir` - Path to R library within singularity image (default: /opt/R/library)
 - Update reference file paths if different from defaults
 - Adjust sequencing parameters (read length, organism, genome)
 

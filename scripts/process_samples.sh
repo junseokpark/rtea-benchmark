@@ -12,9 +12,9 @@ DATA_HOME=/home/junseokp/workspaces/data/rTea-simul
 OUTPUT_BASE=${DATA_HOME}/output
 
 # JET Configuration
-JETProjectDir=/path/to/JET  # UPDATE THIS PATH
-samtoolsBinDir=/path/to/samtools/bin  # UPDATE THIS PATH
-starBinDir=/path/to/STAR/bin  # UPDATE THIS PATH
+JET2=/path/to/jet.sif  # UPDATE THIS PATH: Path to JET singularity image
+samtoolsBinDir=/opt/samtools/bin  # Path within singularity image
+starBinDir=/opt/STAR/bin  # Path within singularity image
 readLength=150  # UPDATE if different
 organism="human"  # UPDATE if different
 genome="hg38"  # UPDATE if different
@@ -25,7 +25,7 @@ gtfGeneFile=${refDir}/gene_annotation.gtf
 starIndexesDir=${refDir}/STAR_indexes
 repeatsFile=${refDir}/repeats.txt
 gffFile=${refDir}/TE_annotation.gff
-RlibDir=/path/to/R/library  # UPDATE THIS PATH
+RlibDir=/opt/R/library  # Path within singularity image
 threads=8
 
 # TEProf2 Configuration

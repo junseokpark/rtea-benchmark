@@ -15,8 +15,8 @@ run_jet_step1() {
     
     echo -e "\e[1m${dataDir}\t${metaFile}\e[0m" > "${logFile}"
     
-    # Execute JET Step 1
-    executeCMD="${JETProjectDir}/Step1_pipelineJETs_STAR.sh \
+    # Execute JET Step 1 using singularity
+    executeCMD="singularity exec ${JET2} /JET/Step1_pipelineJETs_STAR.sh \
         --samtools ${samtoolsBinDir} \
         --star ${starBinDir} \
         --read-length ${readLength} \
@@ -54,9 +54,9 @@ run_jet_step2() {
     
     echo -e "\e[1m${dataDir}\t${metaFile}\e[0m" > "${logFile}"
     
-    # Execute JET Step 2
-    executeCMD="${JETProjectDir}/Step2_pipelineJETs_R.sh \
-        --jetprojectdir ${JETProjectDir} \
+    # Execute JET Step 2 using singularity
+    executeCMD="singularity exec ${JET2} /JET/Step2_pipelineJETs_R.sh \
+        --jetprojectdir /JET \
         --data-dir ${dataDir} \
         --outputs-dir ${outputsDir} \
         --log-dir ${logDir} \
