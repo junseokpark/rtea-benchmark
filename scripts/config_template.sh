@@ -7,7 +7,7 @@
 # ============================================
 
 # Data Directories
-export DATA_HOME="/home/junseokp/workspaces/data/rTea-simul"
+export DATA_HOME="/home/junseokp/workspaces/data/rTea-simul/sims"
 export OUTPUT_BASE="${DATA_HOME}/output"
 export REF_DIR="${DATA_HOME}/ref"
 

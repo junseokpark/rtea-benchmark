@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Check processing status for all samples
-DATA_HOME=/home/junseokp/workspaces/data/rTea-simul
+DATA_HOME=/home/junseokp/workspaces/data/rTea-simul/sims
 OUTPUT_BASE=${DATA_HOME}/output
 SAMPLE_LIST="sample_list.txt"
 
