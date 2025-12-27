@@ -15,12 +15,12 @@ export REF_DIR="${DATA_HOME}/ref"
 # JET Configuration
 # ============================================
 
-# JET Installation Path
-export JETProjectDir="/path/to/JET"  # REQUIRED: Path to JET installation
+# JET Singularity Image Path
+export JET2="/path/to/jet.sif"  # REQUIRED: Path to JET singularity image (e.g., /home/user/jet_docker/jet.sif)
 
-# Tool Paths
-export samtoolsBinDir="/path/to/samtools/bin"  # REQUIRED
-export starBinDir="/path/to/STAR/bin"  # REQUIRED
+# Tool Paths (within JET singularity image)
+export samtoolsBinDir="/opt/samtools/bin"  # Path within singularity image
+export starBinDir="/opt/STAR/bin"  # Path within singularity image
 
 # Sequencing Parameters
 export readLength=150  # UPDATE if your read length is different
@@ -35,8 +35,8 @@ export starIndexesDir="${REF_DIR}/STAR_indexes"  # REQUIRED: STAR index director
 export repeatsFile="${REF_DIR}/repeats.txt"  # REQUIRED: Repeat elements file
 export gffFile="${REF_DIR}/TE_annotation.gff"  # REQUIRED: TE annotation in GFF format
 
-# R Configuration
-export RlibDir="/path/to/R/library"  # REQUIRED: R library path for JET Step 2
+# R Configuration (within JET singularity image)
+export RlibDir="/opt/R/library"  # Path within singularity image
 
 # ============================================
 # TEProf2 Configuration
@@ -82,19 +82,9 @@ validate_config() {
     
     echo "Validating configuration..."
     
-    # Check JET paths
-    if [ ! -d "$JETProjectDir" ]; then
-        echo "ERROR: JETProjectDir not found: $JETProjectDir"
-        errors=$((errors + 1))
-    fi
-    
-    if [ ! -d "$samtoolsBinDir" ]; then
-        echo "ERROR: samtoolsBinDir not found: $samtoolsBinDir"
-        errors=$((errors + 1))
-    fi
-    
-    if [ ! -d "$starBinDir" ]; then
-        echo "ERROR: starBinDir not found: $starBinDir"
+    # Check JET singularity image
+    if [ ! -f "$JET2" ]; then
+        echo "ERROR: JET2 singularity image not found: $JET2"
         errors=$((errors + 1))
     fi
     
@@ -121,11 +111,6 @@ validate_config() {
     
     if [ ! -f "$gffFile" ]; then
         echo "ERROR: GFF file not found: $gffFile"
-        errors=$((errors + 1))
-    fi
-    
-    if [ ! -d "$RlibDir" ]; then
-        echo "ERROR: R library directory not found: $RlibDir"
         errors=$((errors + 1))
     fi
     
