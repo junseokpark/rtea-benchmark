@@ -105,14 +105,12 @@ run_teprof2() {
   ARGUMENTS_TXT="${ARGUMENTS_TXT:-${refDir}/arguments.txt}"  # TEProf2 arguments.txt
 
   # Tools (must be in PATH)
-  command -v STAR &>/dev/null
-  command -v samtools &>/dev/null
-  command -v stringtie &>/dev/null
-  command -v gffread &>/dev/null
-  command -v cuffmerge &>/dev/null
-  command -v rmskhg38_annotate_gtf_update_test_tpm.py &>/dev/null
-  command -v annotationtpmprocess.py &>/dev/null
-  command -v filterReadCandidates.R &>/dev/null
+  command -v STAR &>/dev/null || { echo "ERROR: STAR not found in PATH"; return 1; }
+  command -v samtools &>/dev/null || { echo "ERROR: samtools not found in PATH"; return 1; }
+  command -v stringtie &>/dev/null || { echo "ERROR: stringtie not found in PATH"; return 1; }
+  command -v rmskhg38_annotate_gtf_update_test_tpm.py &>/dev/null || { echo "ERROR: rmskhg38_annotate_gtf_update_test_tpm.py not found in PATH"; return 1; }
+  command -v annotationtpmprocess.py &>/dev/null || { echo "ERROR: annotationtpmprocess.py not found in PATH"; return 1; }
+  command -v filterReadCandidates.R &>/dev/null || { echo "ERROR: filterReadCandidates.R not found in PATH"; return 1; }
 
   # ---------- Outputs ----------
   outRoot="${dataDir:-.}/TEProf2/${SAMPLE_NAME}"
