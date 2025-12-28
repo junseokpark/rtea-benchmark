@@ -49,6 +49,11 @@ export TEPROF2_REF="${REF_DIR}/Homo_sapiens_assembly38.fasta"
 export TEPROF2_TE_ANNOT="${REF_DIR}/TE_annotation.gtf"
 export TEPROF2_GENE_ANNOT="${REF_DIR}/gencode.v46.annotation.gtf"
 
+# TEProf2 Pipeline-specific References
+export STAR_INDEX="${REF_DIR}/STAR_hg38_index"  # REQUIRED: Prebuilt STAR index directory for TEProf2
+export GENCODE_GTF="${REF_DIR}/gencode.gtf"     # REQUIRED: GENCODE annotation GTF for StringTie
+export ARGUMENTS_TXT="${REF_DIR}/arguments.txt" # REQUIRED: TEProf2 arguments.txt file
+
 # TEProf2 Parameters
 export TEPROF2_MIN_MAPQ=20
 export TEPROF2_MIN_BASE_QUAL=20
@@ -117,6 +122,22 @@ validate_config() {
     # Check TEProf2
     if [ ! -f "$TEProf2" ]; then
         echo "ERROR: TEProf2 container not found: $TEProf2"
+        errors=$((errors + 1))
+    fi
+    
+    # Check TEProf2-specific reference files
+    if [ ! -d "$STAR_INDEX" ]; then
+        echo "ERROR: STAR index directory not found: $STAR_INDEX"
+        errors=$((errors + 1))
+    fi
+    
+    if [ ! -f "$GENCODE_GTF" ]; then
+        echo "ERROR: GENCODE GTF not found: $GENCODE_GTF"
+        errors=$((errors + 1))
+    fi
+    
+    if [ ! -f "$ARGUMENTS_TXT" ]; then
+        echo "ERROR: TEProf2 arguments.txt not found: $ARGUMENTS_TXT"
         errors=$((errors + 1))
     fi
     
