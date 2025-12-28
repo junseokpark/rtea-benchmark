@@ -226,6 +226,7 @@ setup_test_environment() {
     export organism="${organism:-human}"
     export genome="${genome:-hg38}"
     export database="${database:-test_db}"
+    export refDir="${refDir:-${REF_DIR:-/path/to/ref}}"
     
     # Set test fastq files
     export FQ1="/path/to/test.1.fq.gz"

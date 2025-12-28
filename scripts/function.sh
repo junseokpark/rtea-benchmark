@@ -85,29 +85,88 @@ run_jet_step2() {
 
 # Function to run TEProf2
 run_teprof2() {
-    echo "[$(date)] Starting TEProf2 analysis..."
-    
-    teprof2_output="${dataDir}/TEProf2"
-    mkdir -p "${teprof2_output}"
-    
-    # TODO: Update with actual TEProf2 command structure
-    # This is a placeholder - please provide the actual TEProf2 command
-    singularity exec ${TEProf2} teprof2 \
-        --fq1 ${FQ1} \
-        --fq2 ${FQ2} \
-        --ref ${refDir}/reference.fa \
-        --te-annot ${refDir}/TE_annotation.gtf \
-        --gene-annot ${refDir}/gene_annotation.gtf \
-        --output-dir "${teprof2_output}" \
-        --threads ${threads} \
-        --min-mapq 20 \
-        --min-base-quality 20
-    
-    if [ $? -ne 0 ]; then
-        echo "ERROR: TEProf2 analysis failed for ${SAMPLE_NAME}"
-        return 1
-    fi
-    
-    echo "[$(date)] TEProf2 analysis completed successfully"
-    return 0
+  set -euo pipefail
+
+  echo "[$(date)] Starting TEProf2 for ${SAMPLE_NAME}"
+
+  # ---------- Required variables ----------
+  # Inputs
+  : "${FQ1:?Need FQ1}"
+  : "${FQ2:?Need FQ2}"
+  : "${SAMPLE_NAME:?Need SAMPLE_NAME}"
+
+  # Threads
+  threads="${threads:-16}"
+
+  # References
+  : "${refDir:?Need refDir}"
+  STAR_INDEX="${STAR_INDEX:-${refDir}/STAR_hg38_index}"   # prebuilt STAR index dir
+  GENCODE_GTF="${GENCODE_GTF:-${refDir}/gencode.gtf}"     # used by StringTie + cuffmerge
+  ARGUMENTS_TXT="${ARGUMENTS_TXT:-${refDir}/arguments.txt}"  # TEProf2 arguments.txt
+
+  # Tools (must be in PATH)
+  command -v STAR &>/dev/null || { echo "ERROR: STAR not found in PATH"; return 1; }
+  command -v samtools &>/dev/null || { echo "ERROR: samtools not found in PATH"; return 1; }
+  command -v stringtie &>/dev/null || { echo "ERROR: stringtie not found in PATH"; return 1; }
+  command -v rmskhg38_annotate_gtf_update_test_tpm.py &>/dev/null || { echo "ERROR: rmskhg38_annotate_gtf_update_test_tpm.py not found in PATH"; return 1; }
+  command -v annotationtpmprocess.py &>/dev/null || { echo "ERROR: annotationtpmprocess.py not found in PATH"; return 1; }
+  command -v filterReadCandidates.R &>/dev/null || { echo "ERROR: filterReadCandidates.R not found in PATH"; return 1; }
+
+  # ---------- Outputs ----------
+  outRoot="${dataDir:-.}/TEProf2/${SAMPLE_NAME}"
+  mkdir -p "${outRoot}"
+  cd "${outRoot}"
+
+  # ---------- Step 0: Align FASTQ -> sorted BAM ----------
+  echo "[$(date)] Step 0: Alignment (STAR) -> BAM"
+
+  STAR \
+    --runThreadN "${threads}" \
+    --genomeDir "${STAR_INDEX}" \
+    --readFilesIn "${FQ1}" "${FQ2}" \
+    --readFilesCommand zcat \
+    --outFileNamePrefix "${SAMPLE_NAME}." \
+    --outSAMtype BAM SortedByCoordinate \
+    --outSAMattributes NH HI AS nM XS
+
+  BAM="${outRoot}/${SAMPLE_NAME}.Aligned.sortedByCoord.out.bam"
+
+  samtools index -@ "${threads}" "${BAM}"
+
+  # ---------- Step 1: Assemble transcripts -> sample GTF ----------
+  echo "[$(date)] Step 1: Transcript assembly (StringTie) -> GTF"
+
+  SAMPLE_GTF="${outRoot}/${SAMPLE_NAME}.stringtie.gtf"
+
+  stringtie "${BAM}" \
+    -p "${threads}" \
+    -G "${GENCODE_GTF}" \
+    -o "${SAMPLE_GTF}"
+
+  # ---------- Step 2: TEProf2 annotation (normal) ----------
+  echo "[$(date)] Step 2: TEProf2 RepeatMasker annotation"
+
+  rmskhg38_annotate_gtf_update_test_tpm.py \
+    "${SAMPLE_GTF}" \
+    "${ARGUMENTS_TXT}"
+
+  annotated_gtf="${SAMPLE_GTF}_annotated_filtered_test_all"
+  [[ -f "${annotated_gtf}" ]] || { echo "ERROR: missing ${annotated_gtf}"; return 1; }
+
+  # ---------- Step 3: TPM processing ----------
+  echo "[$(date)] Step 3: TPM processing"
+  annotationtpmprocess.py "${annotated_gtf}"
+
+  tpm_processed="${annotated_gtf}_annotation_tpm_processed"
+  [[ -f "${tpm_processed}" ]] || { echo "ERROR: missing ${tpm_processed}"; return 1; }
+
+  # ---------- Step 4: Filter read candidates ----------
+  echo "[$(date)] Step 4: Filter read candidates"
+  filterReadCandidates.R "${tpm_processed}" "${BAM}"
+
+  filtered_output="${tpm_processed}_filtered"
+  [[ -f "${filtered_output}" ]] || { echo "ERROR: missing ${filtered_output}"; return 1; }
+
+  echo "[$(date)] TEProf2 completed successfully for ${SAMPLE_NAME}"
+  return 0
 }
