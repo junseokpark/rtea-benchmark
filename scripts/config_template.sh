@@ -9,18 +9,18 @@
 # Data Directories
 export DATA_HOME="/home/junseokp/workspaces/data/rTea-simul/sims"
 export OUTPUT_BASE="${DATA_HOME}/output"
-export REF_DIR="${DATA_HOME}/ref"
+export REF_DIR="/home/junseokp/workspaces/data/rTea-simul/ref"
 
 # ============================================
 # JET Configuration
 # ============================================
 
 # JET Singularity Image Path
-export JET2="/path/to/jet.sif"  # REQUIRED: Path to JET singularity image (e.g., /home/user/jet_docker/jet.sif)
+export JET2="/home/sasidharp/jet_docker/jet.sif"  # REQUIRED: Path to JET singularity image (e.g., /home/user/jet_docker/jet.sif)
 
 # Tool Paths (within JET singularity image)
-export samtoolsBinDir="/opt/samtools/bin"  # Path within singularity image
-export starBinDir="/opt/STAR/bin"  # Path within singularity image
+export samtoolsBinDir="/usr/local/bin"  # Path within singularity image
+export starBinDir="/usr/local/bin"  # Path within singularity image
 
 # Sequencing Parameters
 export readLength=150  # UPDATE if your read length is different
@@ -29,14 +29,14 @@ export genome="hg38"  # Genome version
 export database="database_name"  # UPDATE: Database name for JET
 
 # Reference Files for JET
-export fastaFile="${REF_DIR}/reference.fa"  # REQUIRED
-export gtfGeneFile="${REF_DIR}/gene_annotation.gtf"  # REQUIRED
-export starIndexesDir="${REF_DIR}/STAR_indexes"  # REQUIRED: STAR index directory
-export repeatsFile="${REF_DIR}/repeats.txt"  # REQUIRED: Repeat elements file
-export gffFile="${REF_DIR}/TE_annotation.gff"  # REQUIRED: TE annotation in GFF format
+export fastaFile="${REF_DIR}/hg38/Homo_sapiens_assembly38.fasta"  # REQUIRED
+export gtfGeneFile="${REF_DIR}/hg38/gencode.v46.annotation.gtf"  # REQUIRED
+export starIndexesDir="${REF_DIR}/hg38/star/idx"  # REQUIRED: STAR index directory
+export repeatsFile="${REF_DIR}/hg38/hg38.RepeatMasker-4.0.6-Dfam-2.0.reformat.txt"  # REQUIRED: Repeat elements file - Check Point
+export gffFile="${REF_DIR}/hg38/hg38.RepeatMasker-4.0.6-Dfam-2.0.annotation.gff"  # REQUIRED: TE annotation in GFF format
 
 # R Configuration (within JET singularity image)
-export RlibDir="/opt/R/library"  # Path within singularity image
+export RlibDir="/usr/local/lib/R/library"  # Path within singularity image
 
 # ============================================
 # TEProf2 Configuration
@@ -45,9 +45,9 @@ export RlibDir="/opt/R/library"  # Path within singularity image
 export TEProf2="/home/sasidharp/jet_docker/teprof2.sif"  # Singularity container path
 
 # Reference Files for TEProf2 (can be same as JET if compatible)
-export TEPROF2_REF="${REF_DIR}/reference.fa"
+export TEPROF2_REF="${REF_DIR}/Homo_sapiens_assembly38.fasta"
 export TEPROF2_TE_ANNOT="${REF_DIR}/TE_annotation.gtf"
-export TEPROF2_GENE_ANNOT="${REF_DIR}/gene_annotation.gtf"
+export TEPROF2_GENE_ANNOT="${REF_DIR}/gencode.v46.annotation.gtf"
 
 # TEProf2 Parameters
 export TEPROF2_MIN_MAPQ=20
