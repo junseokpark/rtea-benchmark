@@ -20,17 +20,38 @@ filter_broken_fastq() {
         return 1
     fi
 
-    local out="${fq%.fq}.filtered.fq"
-    local removed="${fq%.fq}.removed.seqs"
-
+    local base_out="${fq%.fq}"
+    local base_removed="${fq%.fq}"
+    
     # Handle gzipped files by decompressing first
     local input_file="$fq"
     local is_gzipped=false
     if [[ "$fq" == *.gz ]]; then
         is_gzipped=true
-        out="${fq%.fq.gz}.filtered.fq"
-        removed="${fq%.fq.gz}.removed.seqs"
+        base_out="${fq%.fq.gz}"
+        base_removed="${fq%.fq.gz}"
         input_file="$fq"
+    fi
+    
+    # Handle .fastq extension as well
+    if [[ "$fq" == *.fastq && "$fq" != *.fq ]]; then
+        base_out="${fq%.fastq}"
+        base_removed="${fq%.fastq}"
+    fi
+    if [[ "$fq" == *.fastq.gz ]]; then
+        is_gzipped=true
+        base_out="${fq%.fastq.gz}"
+        base_removed="${fq%.fastq.gz}"
+        input_file="$fq"
+    fi
+
+    local out="${base_out}.filtered.fq"
+    local removed="${base_removed}.removed.seqs"
+    
+    # If original was gzipped, output gzipped filtered file too
+    local out_final="$out"
+    if [[ "$is_gzipped" == true ]]; then
+        out_final="${out}.gz"
     fi
 
     # Clear output files if they exist
@@ -80,16 +101,22 @@ filter_broken_fastq() {
         ' out="$out" bad="$removed" "$input_file"
     fi
 
+    # Gzip the filtered output if original was gzipped
+    if [[ "$is_gzipped" == true && -f "$out" ]]; then
+        gzip "$out"
+    fi
+
     # Check if any sequences were removed
     if [[ -f "$removed" && -s "$removed" ]]; then
         echo "DONE:" >&2
-        echo "  valid FASTQ   → $out" >&2
+        echo "  valid FASTQ   → $out_final" >&2
         echo "  removed reads → $removed" >&2
-        echo "$out"  # Return filtered file path
+        echo "$out_final"  # Return filtered file path
     else
         # No broken sequences found, remove empty files and use original
         [[ -f "$removed" ]] && rm "$removed"
         [[ -f "$out" ]] && rm "$out"
+        [[ -f "$out_final" ]] && rm "$out_final"
         echo "No broken FASTQ records found in: $fq" >&2
         echo "$fq"  # Return original file path
     fi
