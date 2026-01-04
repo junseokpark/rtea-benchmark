@@ -61,6 +61,8 @@ echo "Run command script: ${RUN_COMMAND_SCRIPT}"
 echo "========================================="
 
 # Check that we have processed samples
+# Note: These find commands may take time for large directory trees
+echo "Scanning for processed samples..."
 sample_count=$(find "${OUTPUT_BASE}" -type f -name "*_annotated_filtered_test_all" 2>/dev/null | wc -l)
 bam_count=$(find "${OUTPUT_BASE}" -type f -name "*.bam" 2>/dev/null | wc -l)
 

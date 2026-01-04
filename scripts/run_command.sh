@@ -1,4 +1,25 @@
 #!/bin/sh
+# TEProf2 Aggregation Pipeline Script
+# Original source: https://github.com/HelloYanming/rTea_TEProf2_bencharking
+#
+# This script aggregates TEProf2 results across multiple samples to identify
+# TE-derived transcripts. It performs the following steps:
+# 1. Aggregates processed annotations from all samples
+# 2. Filters candidates based on read support
+# 3. Merges candidates with reference annotations using cuffmerge
+# 4. Quantifies expression levels across all samples
+# 5. Generates final statistics and candidate lists
+#
+# IMPORTANT NOTES:
+# - This script expects to be run from a directory containing:
+#   * arguments.txt (TEProf2 reference file paths)
+#   * *_annotated_filtered_test_all files from individual samples
+#   * BAM files from individual samples (symlinked or copied)
+# - Line 13 has a HARDCODED path: ../genome_46/gencode.v46.basic.annotation.sorted.gtf
+#   The wrapper function in function.sh creates this directory structure automatically
+# - All R/Python scripts and tools must be in PATH or run via container
+# - This script does NOT accept command-line parameters; all configuration is via
+#   input files and defaults in the R/Python scripts
 
 ./aggregateProcessedAnnotation.R -a ./arguments.txt
 mkdir filterreadstats
