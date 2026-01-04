@@ -51,7 +51,12 @@ REL_PATH=$(echo ${SAMPLE_INFO} | awk '{print $4}')
 # Set JET-specific variables
 rnaSample=${FQ1}
 name=${SAMPLE_NAME}
-namePrefix=$(echo ${SAMPLE_NAME} | cut -d'_' -f1)
+# Extract name prefix (everything before first underscore, or full name if no underscore)
+if [[ ${SAMPLE_NAME} == *"_"* ]]; then
+    namePrefix=$(echo ${SAMPLE_NAME} | cut -d'_' -f1)
+else
+    namePrefix=${SAMPLE_NAME}
+fi
 
 # Create output directory for this sample
 dataDir="${OUTPUT_BASE}/${REL_PATH}/${SAMPLE_NAME}"
