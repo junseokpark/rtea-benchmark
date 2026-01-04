@@ -206,7 +206,8 @@ setup_test_environment() {
     # Create test directories
     #export dataDir="${TEST_LOG_DIR}/test_data"
     export outputDir="${TEST_LOG_DIR}/test_output"
-    export SAMPLE_NAME="test_sample"
+    export SAMPLE_NAME="sim200_AluY_blood"
+    export rnaSample="nonReferenceTE/AluY/5X/fq"
     
     mkdir -p "${outputDir}/output"
     mkdir -p "${outputDir}/log"
@@ -217,11 +218,10 @@ setup_test_environment() {
     
     # Set test fastq files - use dataDir from config or fallback to DATA_HOME
     local test_data_dir="${dataDir:-${DATA_HOME:-/home/junseokp/workspaces/data/rTea-simul/sims}}"
-    export FQ1="${test_data_dir}/nonReferenceTE/AluY/5X/fq/sim200_AluY_blood.1.fq.gz"
-    export FQ2="${test_data_dir}/nonReferenceTE/AluY/5X/fq/sim200_AluY_blood.2.fq.gz"
+    export FQ1="${test_data_dir}/${rnaSample}/${SAMPLE_NAME}.1.fq.gz"
+    export FQ2="${test_data_dir}/${rnaSample}/${SAMPLE_NAME}.2.fq.gz"
     
     # Set JET-specific variables
-    export rnaSample="${FQ1}"
     export name="${SAMPLE_NAME}"
     export namePrefix=$(extract_name_prefix "${SAMPLE_NAME}")
     

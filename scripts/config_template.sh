@@ -18,7 +18,7 @@ export REF_DIR="/home/junseokp/workspaces/data/rTea-simul/ref"
 # ============================================
 # JET Singularity Image Path
 export JET2="/home/sasidharp/jet_docker/jet.sif"  # REQUIRED: Path to JET singularity image (e.g., /home/user/jet_docker/jet.sif)
-export JET2_localPath="/home/junseokp/workspaces/tools/JET_identification_pipeline"
+export JET2_localPath="/home/junseokp/workspaces/projects/rtea/tools/JET_identification_pipeline"
 
 # Tool Paths (within JET singularity image)
 export samtoolsBinDir="/usr/local/bin"  # Path within singularity image
@@ -41,6 +41,9 @@ export threads=8
 # export rnaSample="path/to/sample.fastq.gz"  # Path to RNA sample file
 # export name="sample_name"                    # Sample name
 # export namePrefix="prefix"                   # Sample name prefix
+# export outputDir="${TEST_LOG_DIR}/test_output"
+# export SAMPLE_NAME="sim200_AluY_blood"
+# export rnaSample="nonReferenceTE/AluY/5X/fq"
 
 # Reference Files for JET
 export fastaFile="Homo_sapiens_assembly38.fasta"  # REQUIRED
