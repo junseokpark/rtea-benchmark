@@ -13,7 +13,7 @@ run_jet_step1() {
     
     mkdir -p ${outputsDir}
     
-    echo -e "\e[1m${dataDir}\t${metaFile}\e[0m" > "${logFile}"
+    echo -e "\e[1m${dataDir}\e[0m" > "${logFile}"
     
     # Execute JET Step 1 using singularity
     executeCMD="singularity exec --bind ${JET2_localPath}:${JET2_localPath} \
@@ -29,7 +29,9 @@ run_jet_step1() {
         --fasta ${fastaFile} \
         --gtf ${gtfGeneFile} \
         --threads ${threads} \
-        --meta ${metaFile} \
+        --rna-sample ${rnaSample} \
+        --name ${name} \
+        --name-prefix ${namePrefix} \
         --data-dir ${dataDir} \
         --output ${outputsDir}"
     
@@ -54,7 +56,7 @@ run_jet_step2() {
     ErrorDir="${dataDir}/err"
     logFile="${logDir}/step2_multisample_running_$(date +'%Y%m%d').log"
     
-    echo -e "\e[1m${dataDir}\t${metaFile}\e[0m" > "${logFile}"
+    echo -e "\e[1m${dataDir}\e[0m" > "${logFile}"
     
     # Execute JET Step 2 using singularity
     executeCMD="singularity exec ${JET2} ${JET2_localPath}/Step2_pipelineJETs_R.sh \
@@ -63,7 +65,9 @@ run_jet_step2() {
         --outputs-dir ${outputsDir} \
         --log-dir ${logDir} \
         --star-dir ${starIndexesDir} \
-        --metadata ${metaFile} \
+        --rna-sample ${rnaSample} \
+        --name ${name} \
+        --name-prefix ${namePrefix} \
         --error-dir ${ErrorDir} \
         --read-length ${readLength} \
         --organism ${organism} \
