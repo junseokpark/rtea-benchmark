@@ -1,4 +1,3 @@
-
 #!/bin/sh
 
 ./aggregateProcessedAnnotation.R -a ./arguments.txt

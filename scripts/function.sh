@@ -259,15 +259,15 @@ run_teprof2_aggregation() {
   # Find all TEProf2 sample output directories containing BAM files
   # Pattern: look for .bam files in subdirectories
   bam_count=0
-  find "${dataDir}" -type f -name "*.bam" 2>/dev/null | while read bam_file; do
+  while read bam_file; do
     bam_basename=$(basename "${bam_file}")
     if [[ ! -e "./${bam_basename}" ]]; then
       ln -s "${bam_file}" "./${bam_basename}"
       bam_count=$((bam_count + 1))
     fi
-  done
+  done < <(find "${dataDir}" -type f -name "*.bam" 2>/dev/null)
 
-  echo "[$(date)] Linked BAM files for aggregation"
+  echo "[$(date)] Linked ${bam_count} BAM files for aggregation"
 
   # Copy or symlink all *_annotated_filtered_test_all files (output from per-sample processing)
   echo "[$(date)] Collecting annotated GTF files from samples..."
@@ -276,45 +276,41 @@ run_teprof2_aggregation() {
   # Execute run_command.sh with proper environment
   echo "[$(date)] Executing run_command.sh for cross-sample aggregation..."
 
-  # Build optional arguments for aggregateProcessedAnnotation.R
-  AGG_ARGS="-a ./arguments.txt"
+  # NOTE: The original run_command.sh script has hardcoded paths and doesn't accept parameters.
+  # The optional configuration variables in config_template.sh are documented for reference,
+  # but to use non-default values, users must either:
+  # 1. Modify run_command.sh directly, OR
+  # 2. Call the R/Python scripts individually with custom parameters
+  #
+  # Example of calling aggregateProcessedAnnotation.R with custom parameters:
+  # ./aggregateProcessedAnnotation.R -a ./arguments.txt -e "treatment" -l 2588 -s 2 -n 1
   
-  [[ -n "${TEPROF2_AGG_EXT_TREATMENT:-}" ]] && AGG_ARGS+=" -e ${TEPROF2_AGG_EXT_TREATMENT}"
-  [[ -n "${TEPROF2_AGG_EXON1_LENGTH_MAX:-}" ]] && AGG_ARGS+=" -l ${TEPROF2_AGG_EXON1_LENGTH_MAX}"
-  [[ -n "${TEPROF2_AGG_EXON_SKIP_MAX:-}" ]] && AGG_ARGS+=" -s ${TEPROF2_AGG_EXON_SKIP_MAX}"
-  [[ -n "${TEPROF2_AGG_SAMPLE_TOTAL_MIN:-}" ]] && AGG_ARGS+=" -n ${TEPROF2_AGG_SAMPLE_TOTAL_MIN}"
-  [[ -n "${TEPROF2_AGG_TREATMENT_TOTAL_MIN:-}" ]] && AGG_ARGS+=" -t ${TEPROF2_AGG_TREATMENT_TOTAL_MIN}"
-  [[ -n "${TEPROF2_AGG_TREATMENT_EXCLUSIVE:-}" ]] && AGG_ARGS+=" -x ${TEPROF2_AGG_TREATMENT_EXCLUSIVE}"
-  [[ -n "${TEPROF2_AGG_KEEP_NONE:-}" ]] && AGG_ARGS+=" -k ${TEPROF2_AGG_KEEP_NONE}"
-  [[ -n "${TEPROF2_AGG_FILTER_FOR_TES:-}" ]] && AGG_ARGS+=" -f ${TEPROF2_AGG_FILTER_FOR_TES}"
+  echo "Using default parameters from run_command.sh"
+  echo "To customize, edit run_command.sh or call R/Python scripts directly"
 
-  echo "Aggregation arguments: ${AGG_ARGS}"
-
-  # Build optional arguments for filterReadCandidates.R
-  FILTER_ARGS=""
-  [[ -n "${TEPROF2_FILTER_MIN_READS_IN_TE:-}" ]] && FILTER_ARGS+=" -r ${TEPROF2_FILTER_MIN_READS_IN_TE}"
-  [[ -n "${TEPROF2_FILTER_MIN_START_READ:-}" ]] && FILTER_ARGS+=" -s ${TEPROF2_FILTER_MIN_START_READ}"
-  [[ -n "${TEPROF2_FILTER_EXONIZATION_MAX_PERCENT:-}" ]] && FILTER_ARGS+=" -e ${TEPROF2_FILTER_EXONIZATION_MAX_PERCENT}"
-  [[ -n "${TEPROF2_FILTER_DISTANCE_TE:-}" ]] && FILTER_ARGS+=" -d ${TEPROF2_FILTER_DISTANCE_TE}"
-
-  echo "Filter arguments: ${FILTER_ARGS}"
-
-  # Note: run_command.sh needs to be modified to accept and use these parameters
-  # For now, it uses defaults. The script would need to be edited to pass AGG_ARGS and FILTER_ARGS
-
-  # Update the hardcoded gencode path in run_command.sh if needed
-  # The script has: ../genome_46/gencode.v46.basic.annotation.sorted.gtf
-  # We need to ensure this path exists or modify the script
-  gencode_parent_dir=$(dirname "${TEPROF2_CUFFMERGE_GTF}")
-  gencode_parent_parent_dir=$(dirname "${gencode_parent_dir}")
+  # Handle the hardcoded gencode path in run_command.sh
+  # Line 14 of run_command.sh has: ../genome_46/gencode.v46.basic.annotation.sorted.gtf
+  # Create this directory structure to make it work
+  echo "[$(date)] Setting up reference path for cuffmerge..."
   
-  # Create a symlink to make the hardcoded path work
-  if [[ ! -e "../genome_46" ]]; then
-    mkdir -p ../genome_46
-    ln -sf "${TEPROF2_CUFFMERGE_GTF}" ../genome_46/gencode.v46.basic.annotation.sorted.gtf
+  parent_dir=$(dirname "${TEPROF2_AGGREGATION_DIR}")
+  genome_ref_dir="${parent_dir}/genome_46"
+  
+  if [[ ! -e "${genome_ref_dir}/gencode.v46.basic.annotation.sorted.gtf" ]]; then
+    echo "Creating genome_46 directory structure..."
+    mkdir -p "${genome_ref_dir}"
+    
+    if [[ -f "${TEPROF2_CUFFMERGE_GTF}" ]]; then
+      ln -sf "${TEPROF2_CUFFMERGE_GTF}" "${genome_ref_dir}/gencode.v46.basic.annotation.sorted.gtf"
+      echo "Symlinked ${TEPROF2_CUFFMERGE_GTF} to ${genome_ref_dir}/gencode.v46.basic.annotation.sorted.gtf"
+    else
+      echo "WARNING: TEPROF2_CUFFMERGE_GTF not found: ${TEPROF2_CUFFMERGE_GTF}"
+      echo "You may need to create ${genome_ref_dir}/gencode.v46.basic.annotation.sorted.gtf manually"
+    fi
   fi
 
   # Execute run_command.sh
+  echo "[$(date)] Running run_command.sh..."
   bash "${RUN_COMMAND_SCRIPT}"
 
   if [ $? -ne 0 ]; then

@@ -107,14 +107,21 @@ export TEPROF2_AGGREGATION_DIR="${OUTPUT_BASE}/TEProf2_aggregated"
 export RUN_COMMAND_SCRIPT="${SCRIPT_DIR:-/path/to/scripts}/run_command.sh"
 
 # Reference GTF for cuffmerge step in run_command.sh
-# This path is hardcoded in run_command.sh as ../genome_46/gencode.v46.basic.annotation.sorted.gtf
-# Update this to match your actual reference location
+# REQUIRED: This path is hardcoded in run_command.sh (line 14) as ../genome_46/gencode.v46.basic.annotation.sorted.gtf
+# The aggregation function will create a symlink to make this work
 export TEPROF2_CUFFMERGE_GTF="${REF_DIR}/gencode.v46.basic.annotation.sorted.gtf"
 
 # ============================================
 # TEProf2 Optional Arguments for aggregateProcessedAnnotation.R
 # ============================================
-# These parameters control filtering during the aggregation step
+# IMPORTANT NOTE: The original run_command.sh script does NOT accept command-line parameters.
+# These variables are documented here for reference. To use non-default values, you must either:
+# 1. Manually edit run_command.sh to pass these parameters to the R/Python scripts, OR
+# 2. Run the R/Python scripts individually with your custom parameters instead of using run_command.sh
+#
+# Example manual execution:
+#   ./aggregateProcessedAnnotation.R -a ./arguments.txt -e "treatment" -l 2588 -s 2
+#   # ... followed by other commands from run_command.sh
 
 # Treatment label for identifying treatment samples (default: '')
 # If not specified, all samples are considered as treatment
