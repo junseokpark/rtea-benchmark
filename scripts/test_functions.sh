@@ -148,6 +148,7 @@ validate_environment() {
     
     # Check if singularity is available
     print_info "Checking for singularity..."
+    module load singularity
     if command -v singularity &> /dev/null; then
         local singularity_version=$(singularity --version 2>&1)
         print_success "Singularity found: ${singularity_version}"
@@ -203,20 +204,21 @@ setup_test_environment() {
     print_header "Setting Up Test Environment"
     
     # Create test directories
-    export dataDir="${TEST_LOG_DIR}/test_data"
-    export metaFile="${dataDir}/metadata.txt"
+    #export dataDir="${TEST_LOG_DIR}/test_data"
+    export outputDir="${TEST_LOG_DIR}/test_output"
+    export metaFile="${outputDir}/metadata.txt"
     export SAMPLE_NAME="test_sample"
     
-    mkdir -p "${dataDir}/output"
-    mkdir -p "${dataDir}/log"
-    mkdir -p "${dataDir}/err"
+    mkdir -p "${outputDir}/output"
+    mkdir -p "${outputDir}/log"
+    mkdir -p "${outputDir}/err"
     
-    print_success "Test directories created: ${dataDir}"
-    log_message "Test data directory: ${dataDir}"
+    print_success "Test directories created: ${outputDir}"
+    log_message "Test data directory: ${outputDir}"
     
     # Create minimal metadata file
     echo -e "sample\tfastq1\tfastq2" > "${metaFile}"
-    echo -e "${SAMPLE_NAME}\t/path/to/test.1.fq.gz\t/path/to/test.2.fq.gz" >> "${metaFile}"
+    echo -e "${SAMPLE_NAME}\t/home/junseokp/workspaces/data/rTea-simul/sims/nonReferenceTE/AluY/5X/fq/sim200_AluY_blood.1.fq.gz\t/home/junseokp/workspaces/data/rTea-simul/sims/nonReferenceTE/AluY/5X/fq/sim200_AluY_blood.2.fq.gz" >> "${metaFile}"
     print_success "Metadata file created: ${metaFile}"
     log_message "Metadata file: ${metaFile}"
     
@@ -226,11 +228,11 @@ setup_test_environment() {
     export organism="${organism:-human}"
     export genome="${genome:-hg38}"
     export database="${database:-test_db}"
-    export refDir="${refDir:-${REF_DIR:-/path/to/ref}}"
+    export refDir="${refDir:-${REF_DIR:-/home/junseokp/workspaces/data/rTea-simul/ref}}"
     
     # Set test fastq files
-    export FQ1="/path/to/test.1.fq.gz"
-    export FQ2="/path/to/test.2.fq.gz"
+    export FQ1="/home/junseokp/workspaces/data/rTea-simul/sims/nonReferenceTE/AluY/5X/fq/sim200_AluY_blood.1.fq.gz"
+    export FQ2="/home/junseokp/workspaces/data/rTea-simul/sims/nonReferenceTE/AluY/5X/fq/sim200_AluY_blood.2.fq.gz"
     
     print_info "Test environment variables set:"
     log_message "Test environment setup complete"

@@ -7,8 +7,8 @@
 run_jet_step1() {
     echo "[$(date)] Starting JET Step 1 - STAR Alignment..."
     
-    outputsDir="${dataDir}/output"
-    logDir="${dataDir}/log"
+    outputsDir="${outputDir}/output"
+    logDir="${outputDir}/log"
     logFile="${logDir}/step1_multisample_running_$(date +'%Y%m%d').log"
     
     mkdir -p ${outputsDir}
@@ -16,7 +16,9 @@ run_jet_step1() {
     echo -e "\e[1m${dataDir}\t${metaFile}\e[0m" > "${logFile}"
     
     # Execute JET Step 1 using singularity
-    executeCMD="singularity exec ${JET2} /JET/Step1_pipelineJETs_STAR.sh \
+    executeCMD="singularity exec --bind ${JET2_localPath}:${JET2_localPath} \
+        --bind ${dataDir}:${dataDir} \
+        ${JET2} ${JET2_localPath}/Step1_pipelineJETs_STAR.sh \
         --samtools ${samtoolsBinDir} \
         --star ${starBinDir} \
         --read-length ${readLength} \
@@ -55,8 +57,8 @@ run_jet_step2() {
     echo -e "\e[1m${dataDir}\t${metaFile}\e[0m" > "${logFile}"
     
     # Execute JET Step 2 using singularity
-    executeCMD="singularity exec ${JET2} /JET/Step2_pipelineJETs_R.sh \
-        --jetprojectdir /JET \
+    executeCMD="singularity exec ${JET2} ${JET2_localPath}/Step2_pipelineJETs_R.sh \
+        --jetprojectdir ${JET2_localPath} \
         --data-dir ${dataDir} \
         --outputs-dir ${outputsDir} \
         --log-dir ${logDir} \
