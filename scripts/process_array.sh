@@ -48,15 +48,14 @@ FQ1=$(echo ${SAMPLE_INFO} | awk '{print $2}')
 FQ2=$(echo ${SAMPLE_INFO} | awk '{print $3}')
 REL_PATH=$(echo ${SAMPLE_INFO} | awk '{print $4}')
 
+# Source shared functions first
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${SCRIPT_DIR}/function.sh"
+
 # Set JET-specific variables
 rnaSample=${FQ1}
 name=${SAMPLE_NAME}
-# Extract name prefix (everything before first underscore, or full name if no underscore)
-if [[ ${SAMPLE_NAME} == *"_"* ]]; then
-    namePrefix=$(echo ${SAMPLE_NAME} | cut -d'_' -f1)
-else
-    namePrefix=${SAMPLE_NAME}
-fi
+namePrefix=$(extract_name_prefix "${SAMPLE_NAME}")
 
 # Create output directory for this sample
 dataDir="${OUTPUT_BASE}/${REL_PATH}/${SAMPLE_NAME}"
@@ -72,10 +71,6 @@ echo "  R1: ${FQ1}"
 echo "  R2: ${FQ2}"
 echo "Output directory: ${dataDir}"
 echo "========================================="
-
-# Source shared functions
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "${SCRIPT_DIR}/function.sh"
 
 # Run JET Step 1
 run_jet_step1

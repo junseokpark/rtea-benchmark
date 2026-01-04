@@ -3,6 +3,12 @@
 # Common functions for TE analysis pipeline
 # This file contains shared functions used by process_samples.sh and process_array.sh
 
+# Function to extract name prefix (everything before first underscore, or full name if no underscore)
+extract_name_prefix() {
+    local sample_name="$1"
+    echo "${sample_name%%_*}"
+}
+
 # Function to run JET Step 1
 run_jet_step1() {
     echo "[$(date)] Starting JET Step 1 - STAR Alignment..."

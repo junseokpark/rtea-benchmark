@@ -65,12 +65,7 @@ process_sample() {
     # Set JET-specific variables
     rnaSample=${fq1}
     name=${sample_name}
-    # Extract name prefix (everything before first underscore, or full name if no underscore)
-    if [[ ${sample_name} == *"_"* ]]; then
-        namePrefix=$(echo ${sample_name} | cut -d'_' -f1)
-    else
-        namePrefix=${sample_name}
-    fi
+    namePrefix=$(extract_name_prefix "${sample_name}")
     
     # Create output directory maintaining original structure
     dataDir="${OUTPUT_BASE}/${rel_path}/${sample_name}"
