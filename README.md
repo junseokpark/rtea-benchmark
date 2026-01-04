@@ -233,6 +233,18 @@ cd scripts
 
 # Or submit as SLURM job:
 sbatch run_teprof2_aggregation.sh
+
+# If tools are not in PATH, run within TEProf2 container:
+singularity exec --bind ${OUTPUT_BASE}:${OUTPUT_BASE} \
+  --bind ${REF_DIR}:${REF_DIR} \
+  ${TEProf2} bash run_teprof2_aggregation.sh
+```
+
+**Important Notes:**
+- The aggregation step requires TEProf2 R scripts and Python tools to be available in PATH
+- If using a container, ensure all paths (output directories, reference files) are bind-mounted
+- The `arguments.txt` file must contain correct paths to all reference files
+- BAM files from individual sample processing are required for expression quantification
 ```
 
 ### Update Reference Paths

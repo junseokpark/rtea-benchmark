@@ -197,6 +197,38 @@ run_teprof2_aggregation() {
   : "${RUN_COMMAND_SCRIPT:?Need RUN_COMMAND_SCRIPT - path to run_command.sh script}"
   : "${TEPROF2_CUFFMERGE_GTF:?Need TEPROF2_CUFFMERGE_GTF - path to GENCODE GTF for cuffmerge}"
 
+  # Check for required tools (must be in PATH or accessible via container)
+  echo "Checking for required tools..."
+  required_tools=(
+    "aggregateProcessedAnnotation.R"
+    "filterReadCandidates.R"
+    "mergeAnnotationProcess.R"
+    "finalStatisticsOutput.R"
+    "rmskhg38_annotate_gtf_update_test_tpm_cuff.py"
+    "commandsmax_speed.py"
+    "stringtieExpressionFrac.py"
+    "samtools"
+    "stringtie"
+    "gffread"
+    "cuffmerge"
+  )
+  
+  missing_tools=()
+  for tool in "${required_tools[@]}"; do
+    if ! command -v "$tool" &>/dev/null; then
+      missing_tools+=("$tool")
+    fi
+  done
+  
+  if [ ${#missing_tools[@]} -gt 0 ]; then
+    echo "WARNING: The following tools are not in PATH:"
+    for tool in "${missing_tools[@]}"; do
+      echo "  - $tool"
+    done
+    echo "These tools must be available in PATH or run this within the TEProf2 container."
+    echo "Continuing anyway - run_command.sh will fail if tools are missing."
+  fi
+
   # Check if run_command.sh exists and is executable
   if [[ ! -f "${RUN_COMMAND_SCRIPT}" ]]; then
     echo "ERROR: run_command.sh not found at ${RUN_COMMAND_SCRIPT}"

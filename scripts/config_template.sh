@@ -76,6 +76,16 @@ export ARGUMENTS_TXT="${REF_DIR}/arguments.txt" # REQUIRED: TEProf2 arguments.tx
 # ============================================
 # After all individual samples are processed, run_command.sh aggregates results
 # across all samples to identify TE-derived transcripts.
+#
+# IMPORTANT: The aggregation step requires additional TEProf2 tools to be available:
+# - aggregateProcessedAnnotation.R, filterReadCandidates.R, mergeAnnotationProcess.R, finalStatisticsOutput.R
+# - rmskhg38_annotate_gtf_update_test_tpm_cuff.py, commandsmax_speed.py, stringtieExpressionFrac.py
+# - samtools, stringtie, gffread, cuffmerge
+#
+# These tools should either be:
+# 1. In your PATH, OR
+# 2. Run the aggregation within the TEProf2 singularity container, e.g.:
+#    singularity exec --bind /path/to/data:/path/to/data $TEProf2 bash run_teprof2_aggregation.sh
 
 # REQUIRED for run_command.sh:
 # The ARGUMENTS_TXT file (above) must contain these tab-delimited entries:
@@ -264,6 +274,12 @@ validate_config() {
     if [ ! -f "$ARGUMENTS_TXT" ]; then
         echo "ERROR: TEProf2 arguments.txt not found: $ARGUMENTS_TXT"
         errors=$((errors + 1))
+    fi
+    
+    # Check TEProf2 aggregation requirements
+    if [ ! -f "$TEPROF2_CUFFMERGE_GTF" ]; then
+        echo "WARNING: TEPROF2_CUFFMERGE_GTF not found: $TEPROF2_CUFFMERGE_GTF"
+        echo "         This is required for TEProf2 aggregation step"
     fi
     
     # Check data directory
