@@ -34,8 +34,8 @@ filter_broken_fastq() {
     fi
 
     # Clear output files if they exist
-    > "$out"
-    > "$removed"
+    : > "$out"
+    : > "$removed"
 
     # Process the FASTQ file
     if [[ "$is_gzipped" == true ]]; then
@@ -100,8 +100,7 @@ run_jet_step1() {
     # Filter FASTQ files if FQ1 and FQ2 are set
     if [[ -n "${FQ1}" && -f "${FQ1}" ]]; then
         echo "[$(date)] Filtering FQ1: ${FQ1}" | tee -a "${logFile}"
-        filtered_fq1=$(filter_broken_fastq "${FQ1}")
-        if [ $? -ne 0 ]; then
+        if ! filtered_fq1=$(filter_broken_fastq "${FQ1}"); then
             echo "ERROR: Failed to filter FQ1: ${FQ1}" | tee -a "${logFile}"
             return 1
         fi
@@ -111,8 +110,7 @@ run_jet_step1() {
     
     if [[ -n "${FQ2}" && -f "${FQ2}" ]]; then
         echo "[$(date)] Filtering FQ2: ${FQ2}" | tee -a "${logFile}"
-        filtered_fq2=$(filter_broken_fastq "${FQ2}")
-        if [ $? -ne 0 ]; then
+        if ! filtered_fq2=$(filter_broken_fastq "${FQ2}"); then
             echo "ERROR: Failed to filter FQ2: ${FQ2}" | tee -a "${logFile}"
             return 1
         fi
@@ -207,16 +205,14 @@ run_teprof2() {
 
   # Filter FASTQ files before processing
   echo "[$(date)] Filtering FQ1: ${FQ1}"
-  filtered_fq1=$(filter_broken_fastq "${FQ1}")
-  if [ $? -ne 0 ]; then
+  if ! filtered_fq1=$(filter_broken_fastq "${FQ1}"); then
       echo "ERROR: Failed to filter FQ1: ${FQ1}"
       return 1
   fi
   FQ1="${filtered_fq1}"
   
   echo "[$(date)] Filtering FQ2: ${FQ2}"
-  filtered_fq2=$(filter_broken_fastq "${FQ2}")
-  if [ $? -ne 0 ]; then
+  if ! filtered_fq2=$(filter_broken_fastq "${FQ2}"); then
       echo "ERROR: Failed to filter FQ2: ${FQ2}"
       return 1
   fi
