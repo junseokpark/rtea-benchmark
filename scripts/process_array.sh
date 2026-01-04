@@ -48,6 +48,15 @@ FQ1=$(echo ${SAMPLE_INFO} | awk '{print $2}')
 FQ2=$(echo ${SAMPLE_INFO} | awk '{print $3}')
 REL_PATH=$(echo ${SAMPLE_INFO} | awk '{print $4}')
 
+# Source shared functions first
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${SCRIPT_DIR}/function.sh"
+
+# Set JET-specific variables
+export rnaSample=${FQ1}
+export name=${SAMPLE_NAME}
+export namePrefix=$(extract_name_prefix "${SAMPLE_NAME}")
+
 # Create output directory for this sample
 dataDir="${OUTPUT_BASE}/${REL_PATH}/${SAMPLE_NAME}"
 mkdir -p "${dataDir}"
@@ -62,15 +71,6 @@ echo "  R1: ${FQ1}"
 echo "  R2: ${FQ2}"
 echo "Output directory: ${dataDir}"
 echo "========================================="
-
-# Create metadata file for this sample
-metaFile="${dataDir}/metadata.txt"
-echo -e "sample\tfastq1\tfastq2" > ${metaFile}
-echo -e "${SAMPLE_NAME}\t${FQ1}\t${FQ2}" >> ${metaFile}
-
-# Source shared functions
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "${SCRIPT_DIR}/function.sh"
 
 # Run JET Step 1
 run_jet_step1

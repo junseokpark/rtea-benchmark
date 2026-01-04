@@ -62,6 +62,11 @@ process_sample() {
     FQ1=${fq1}
     FQ2=${fq2}
     
+    # Set JET-specific variables
+    export rnaSample=${fq1}
+    export name=${sample_name}
+    export namePrefix=$(extract_name_prefix "${sample_name}")
+    
     # Create output directory maintaining original structure
     dataDir="${OUTPUT_BASE}/${rel_path}/${sample_name}"
     mkdir -p "${dataDir}"
@@ -75,11 +80,6 @@ process_sample() {
     echo "  R2: ${FQ2}"
     echo "Output directory: ${dataDir}"
     echo "========================================="
-    
-    # Create metadata file for this sample
-    metaFile="${dataDir}/metadata.txt"
-    echo -e "sample\tfastq1\tfastq2" > ${metaFile}
-    echo -e "${SAMPLE_NAME}\t${FQ1}\t${FQ2}" >> ${metaFile}
     
     # Run JET Step 1
     run_jet_step1

@@ -36,6 +36,12 @@ export genome="hg38"  # Genome version
 export database="database_name"  # UPDATE: Database name for JET
 export threads=8
 
+# JET Sample Parameters (set these when running JET functions)
+# These should be set per sample in your processing scripts:
+# export rnaSample="path/to/sample.fastq.gz"  # Path to RNA sample file
+# export name="sample_name"                    # Sample name
+# export namePrefix="prefix"                   # Sample name prefix
+
 # Reference Files for JET
 export fastaFile="Homo_sapiens_assembly38.fasta"  # REQUIRED
 export gtfGeneFile="gencode.v46.annotation.gtf"  # REQUIRED

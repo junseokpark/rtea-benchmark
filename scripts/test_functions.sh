@@ -206,7 +206,6 @@ setup_test_environment() {
     # Create test directories
     #export dataDir="${TEST_LOG_DIR}/test_data"
     export outputDir="${TEST_LOG_DIR}/test_output"
-    export metaFile="${outputDir}/metadata.txt"
     export SAMPLE_NAME="test_sample"
     
     mkdir -p "${outputDir}/output"
@@ -216,11 +215,15 @@ setup_test_environment() {
     print_success "Test directories created: ${outputDir}"
     log_message "Test data directory: ${outputDir}"
     
-    # Create minimal metadata file
-    echo -e "sample\tfastq1\tfastq2" > "${metaFile}"
-    echo -e "${SAMPLE_NAME}\t/home/junseokp/workspaces/data/rTea-simul/sims/nonReferenceTE/AluY/5X/fq/sim200_AluY_blood.1.fq.gz\t/home/junseokp/workspaces/data/rTea-simul/sims/nonReferenceTE/AluY/5X/fq/sim200_AluY_blood.2.fq.gz" >> "${metaFile}"
-    print_success "Metadata file created: ${metaFile}"
-    log_message "Metadata file: ${metaFile}"
+    # Set test fastq files - use dataDir from config or fallback to DATA_HOME
+    local test_data_dir="${dataDir:-${DATA_HOME:-/home/junseokp/workspaces/data/rTea-simul/sims}}"
+    export FQ1="${test_data_dir}/nonReferenceTE/AluY/5X/fq/sim200_AluY_blood.1.fq.gz"
+    export FQ2="${test_data_dir}/nonReferenceTE/AluY/5X/fq/sim200_AluY_blood.2.fq.gz"
+    
+    # Set JET-specific variables
+    export rnaSample="${FQ1}"
+    export name="${SAMPLE_NAME}"
+    export namePrefix=$(extract_name_prefix "${SAMPLE_NAME}")
     
     # Set other required variables with defaults if not set
     export threads="${threads:-4}"
@@ -230,15 +233,15 @@ setup_test_environment() {
     export database="${database:-test_db}"
     export refDir="${refDir:-${REF_DIR:-/home/junseokp/workspaces/data/rTea-simul/ref}}"
     
-    # Set test fastq files
-    export FQ1="/home/junseokp/workspaces/data/rTea-simul/sims/nonReferenceTE/AluY/5X/fq/sim200_AluY_blood.1.fq.gz"
-    export FQ2="/home/junseokp/workspaces/data/rTea-simul/sims/nonReferenceTE/AluY/5X/fq/sim200_AluY_blood.2.fq.gz"
-    
     print_info "Test environment variables set:"
     log_message "Test environment setup complete"
     echo "  dataDir=${dataDir}" | tee -a "${TEST_LOG}"
-    echo "  metaFile=${metaFile}" | tee -a "${TEST_LOG}"
     echo "  SAMPLE_NAME=${SAMPLE_NAME}" | tee -a "${TEST_LOG}"
+    echo "  FQ1=${FQ1}" | tee -a "${TEST_LOG}"
+    echo "  FQ2=${FQ2}" | tee -a "${TEST_LOG}"
+    echo "  rnaSample=${rnaSample}" | tee -a "${TEST_LOG}"
+    echo "  name=${name}" | tee -a "${TEST_LOG}"
+    echo "  namePrefix=${namePrefix}" | tee -a "${TEST_LOG}"
     echo ""
 }
 
