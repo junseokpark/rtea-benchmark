@@ -20,33 +20,27 @@ filter_broken_fastq() {
         return 1
     fi
 
-    local base_out="${fq%.fq}"
-    local base_removed="${fq%.fq}"
-    
-    # Handle gzipped files by decompressing first
-    local input_file="$fq"
+    # Determine base name and check if gzipped - handle multiple extensions
+    local base_out=""
     local is_gzipped=false
-    if [[ "$fq" == *.gz ]]; then
+    
+    if [[ "$fq" == *.fq.gz ]]; then
         is_gzipped=true
         base_out="${fq%.fq.gz}"
-        base_removed="${fq%.fq.gz}"
-        input_file="$fq"
-    fi
-    
-    # Handle .fastq extension as well
-    if [[ "$fq" == *.fastq && "$fq" != *.fq ]]; then
-        base_out="${fq%.fastq}"
-        base_removed="${fq%.fastq}"
-    fi
-    if [[ "$fq" == *.fastq.gz ]]; then
+    elif [[ "$fq" == *.fastq.gz ]]; then
         is_gzipped=true
         base_out="${fq%.fastq.gz}"
-        base_removed="${fq%.fastq.gz}"
-        input_file="$fq"
+    elif [[ "$fq" == *.fq ]]; then
+        base_out="${fq%.fq}"
+    elif [[ "$fq" == *.fastq ]]; then
+        base_out="${fq%.fastq}"
+    else
+        echo "ERROR: Unrecognized FASTQ file extension: $fq" >&2
+        return 1
     fi
 
     local out="${base_out}.filtered.fq"
-    local removed="${base_removed}.removed.seqs"
+    local removed="${base_out}.removed.seqs"
     
     # If original was gzipped, output gzipped filtered file too
     local out_final="$out"
@@ -54,13 +48,14 @@ filter_broken_fastq() {
         out_final="${out}.gz"
     fi
 
-    # Clear output files if they exist
-    : > "$out"
-    : > "$removed"
+    # Remove old output files if they exist
+    [[ -f "$out" ]] && rm "$out"
+    [[ -f "$out_final" ]] && rm "$out_final"
+    [[ -f "$removed" ]] && rm "$removed"
 
     # Process the FASTQ file
     if [[ "$is_gzipped" == true ]]; then
-        zcat "$input_file" | awk '
+        zcat "$fq" | awk '
             NR % 4 == 1 { h = $0 }
             NR % 4 == 2 { s = $0; sl = length($0) }
             NR % 4 == 3 { p = $0 }
@@ -98,7 +93,7 @@ filter_broken_fastq() {
                     print q >> bad
                 }
             }
-        ' out="$out" bad="$removed" "$input_file"
+        ' out="$out" bad="$removed" "$fq"
     fi
 
     # Gzip the filtered output if original was gzipped
@@ -144,6 +139,7 @@ run_jet_step1() {
             return 1
         fi
         export FQ1="${filtered_fq1}"
+        # rnaSample is used by JET and should match FQ1
         export rnaSample="${filtered_fq1}"
     fi
     
