@@ -182,3 +182,154 @@ run_teprof2() {
   echo "[$(date)] TEProf2 completed successfully for ${SAMPLE_NAME}"
   return 0
 }
+
+# Function to run TEProf2 aggregation across all samples
+# This should be called AFTER all individual samples have been processed
+# It executes run_command.sh which performs cross-sample analysis
+run_teprof2_aggregation() {
+  set -euo pipefail
+
+  echo "[$(date)] Starting TEProf2 aggregation across all samples"
+
+  # ---------- Required variables ----------
+  : "${TEPROF2_AGGREGATION_DIR:?Need TEPROF2_AGGREGATION_DIR - directory containing all TEProf2 sample outputs}"
+  : "${ARGUMENTS_TXT:?Need ARGUMENTS_TXT - path to arguments.txt file}"
+  : "${RUN_COMMAND_SCRIPT:?Need RUN_COMMAND_SCRIPT - path to run_command.sh script}"
+  : "${TEPROF2_CUFFMERGE_GTF:?Need TEPROF2_CUFFMERGE_GTF - path to GENCODE GTF for cuffmerge}"
+
+  # Check for required tools (must be in PATH or accessible via container)
+  echo "Checking for required tools..."
+  required_tools=(
+    "aggregateProcessedAnnotation.R"
+    "filterReadCandidates.R"
+    "mergeAnnotationProcess.R"
+    "finalStatisticsOutput.R"
+    "rmskhg38_annotate_gtf_update_test_tpm_cuff.py"
+    "commandsmax_speed.py"
+    "stringtieExpressionFrac.py"
+    "samtools"
+    "stringtie"
+    "gffread"
+    "cuffmerge"
+  )
+  
+  missing_tools=()
+  for tool in "${required_tools[@]}"; do
+    if ! command -v "$tool" &>/dev/null; then
+      missing_tools+=("$tool")
+    fi
+  done
+  
+  if [ ${#missing_tools[@]} -gt 0 ]; then
+    echo "WARNING: The following tools are not in PATH:"
+    for tool in "${missing_tools[@]}"; do
+      echo "  - $tool"
+    done
+    echo "These tools must be available in PATH or run this within the TEProf2 container."
+    echo "Continuing anyway - run_command.sh will fail if tools are missing."
+  fi
+
+  # Check if run_command.sh exists and is executable
+  if [[ ! -f "${RUN_COMMAND_SCRIPT}" ]]; then
+    echo "ERROR: run_command.sh not found at ${RUN_COMMAND_SCRIPT}"
+    return 1
+  fi
+
+  if [[ ! -x "${RUN_COMMAND_SCRIPT}" ]]; then
+    echo "Making run_command.sh executable..."
+    chmod +x "${RUN_COMMAND_SCRIPT}"
+  fi
+
+  # Create aggregation directory
+  mkdir -p "${TEPROF2_AGGREGATION_DIR}"
+  cd "${TEPROF2_AGGREGATION_DIR}"
+
+  echo "[$(date)] Working directory: ${TEPROF2_AGGREGATION_DIR}"
+
+  # Copy arguments.txt to current directory (required by run_command.sh)
+  if [[ ! -f "./arguments.txt" ]]; then
+    echo "Copying arguments.txt to aggregation directory..."
+    cp "${ARGUMENTS_TXT}" ./arguments.txt
+  fi
+
+  # Symlink all BAM files from individual sample directories to current directory
+  # run_command.sh expects BAM files to be accessible via: find ./ -name "*bam"
+  echo "[$(date)] Symlinking BAM files from sample directories..."
+  
+  # Find all TEProf2 sample output directories containing BAM files
+  # Pattern: look for .bam files in subdirectories
+  bam_count=0
+  while read bam_file; do
+    bam_basename=$(basename "${bam_file}")
+    if [[ ! -e "./${bam_basename}" ]]; then
+      ln -s "${bam_file}" "./${bam_basename}"
+      bam_count=$((bam_count + 1))
+    fi
+  done < <(find "${dataDir}" -type f -name "*.bam" 2>/dev/null)
+
+  echo "[$(date)] Linked ${bam_count} BAM files for aggregation"
+
+  # Copy or symlink all *_annotated_filtered_test_all files (output from per-sample processing)
+  echo "[$(date)] Collecting annotated GTF files from samples..."
+  find "${dataDir}" -type f -name "*_annotated_filtered_test_all" -exec ln -sf {} . \;
+
+  # Execute run_command.sh with proper environment
+  echo "[$(date)] Executing run_command.sh for cross-sample aggregation..."
+
+  # NOTE: The original run_command.sh script has hardcoded paths and doesn't accept parameters.
+  # The optional configuration variables in config_template.sh are documented for reference,
+  # but to use non-default values, users must either:
+  # 1. Modify run_command.sh directly, OR
+  # 2. Call the R/Python scripts individually with custom parameters
+  #
+  # Example of calling aggregateProcessedAnnotation.R with custom parameters:
+  # ./aggregateProcessedAnnotation.R -a ./arguments.txt -e "treatment" -l 2588 -s 2 -n 1
+  
+  echo "Using default parameters from run_command.sh"
+  echo "To customize, edit run_command.sh or call R/Python scripts directly"
+
+  # Handle the hardcoded gencode path in run_command.sh
+  # Line 14 of run_command.sh has: ../genome_46/gencode.v46.basic.annotation.sorted.gtf
+  # Create this directory structure to make it work
+  echo "[$(date)] Setting up reference path for cuffmerge..."
+  
+  parent_dir=$(dirname "${TEPROF2_AGGREGATION_DIR}")
+  genome_ref_dir="${parent_dir}/genome_46"
+  
+  if [[ ! -e "${genome_ref_dir}/gencode.v46.basic.annotation.sorted.gtf" ]]; then
+    echo "Creating genome_46 directory structure..."
+    mkdir -p "${genome_ref_dir}"
+    
+    if [[ -f "${TEPROF2_CUFFMERGE_GTF}" ]]; then
+      ln -sf "${TEPROF2_CUFFMERGE_GTF}" "${genome_ref_dir}/gencode.v46.basic.annotation.sorted.gtf"
+      echo "Symlinked ${TEPROF2_CUFFMERGE_GTF} to ${genome_ref_dir}/gencode.v46.basic.annotation.sorted.gtf"
+    else
+      echo "WARNING: TEPROF2_CUFFMERGE_GTF not found: ${TEPROF2_CUFFMERGE_GTF}"
+      echo "You may need to create ${genome_ref_dir}/gencode.v46.basic.annotation.sorted.gtf manually"
+    fi
+  fi
+
+  # Execute run_command.sh
+  echo "[$(date)] Running run_command.sh..."
+  bash "${RUN_COMMAND_SCRIPT}"
+
+  if [ $? -ne 0 ]; then
+    echo "ERROR: run_command.sh failed during aggregation" | tee -a aggregation.log
+    return 1
+  fi
+
+  echo "[$(date)] TEProf2 aggregation completed successfully"
+  
+  # Output files created by run_command.sh:
+  echo "Output files:"
+  echo "  - filter_combined_candidates.tsv: All TE-gene transcripts"
+  echo "  - initial_candidate_list.tsv: Summary of unique candidates"
+  echo "  - read_filtered_candidates.tsv: Candidates passing read filters"
+  echo "  - candidate_transcripts.gff3: GFF3 format of detected transcripts"
+  echo "  - reference_merged_candidates.gtf: Merged reference with candidates"
+  echo "  - table_frac_tot_cand: Fraction of expression per candidate"
+  echo "  - table_tpm_cand: TPM values per candidate"
+  echo "  - Final statistics and annotations"
+
+  return 0
+}

@@ -1,0 +1,48 @@
+# TEProf2 arguments.txt - Example Template
+# This file contains tab-delimited paths to reference files required by TEProf2
+# Copy this template and update all paths to match your environment
+
+# REQUIRED: RepeatMasker bed6 file (tabix-indexed)
+# Format: bgzipped bed6 file with .gz.tbi index
+rmsk	/path/to/reference/rmskhg38.bed6.gz
+
+# REQUIRED: RepeatMasker annotation mapping file
+# Format: Tab-delimited with 3 columns: subfamily, class, family
+# Example:
+# AluY	SINE	Alu
+# L1HS	LINE	L1
+rmskannotationfile	/path/to/reference/repeatmasker_hg38_description_uniq.lst
+
+# REQUIRED: GENCODE dictionary for plus strand
+# Generated using genecode_to_dic.py script from TEProf2
+gencodeplusdic	/path/to/reference/genecode_plus_hg38.dic
+
+# REQUIRED: GENCODE dictionary for minus strand
+# Generated using genecode_to_dic.py script from TEProf2
+gencodeminusdic	/path/to/reference/genecode_minus_hg38.dic
+
+# OPTIONAL: Gene filter list
+# One gene symbol per line to focus analysis on specific genes
+# Example:
+# TP53
+# BRCA1
+# MYC
+# Uncomment the line below to enable:
+# focusgenes	/path/to/reference/oncogenes_list.txt
+
+# OPTIONAL: Intron annotations for plus strand (tabix-indexed)
+# Generated using genecode_introns.py script from TEProf2
+# Helps identify previously annotated alternative transcripts
+# Uncomment the line below to enable:
+# plusintron	/path/to/reference/gencode.v46.annotation.sorted.gtf_introns_plus_sorted.gz
+
+# OPTIONAL: Intron annotations for minus strand (tabix-indexed)
+# Generated using genecode_introns.py script from TEProf2
+# Uncomment the line below to enable:
+# minusintron	/path/to/reference/gencode.v46.annotation.sorted.gtf_introns_minus_sorted.gz
+
+# NOTE: All paths must be absolute paths
+# NOTE: Tabix-indexed files require both .gz and .gz.tbi files in the same directory
+# NOTE: To create tabix indexes:
+#   bgzip input.bed > input.bed.gz
+#   tabix -p bed input.bed.gz
