@@ -46,9 +46,15 @@ filter_broken_fastq() {
             NR % 4 == 0 {
                 q = $0; ql = length($0)
                 if (sl == ql) {
-                    print h "\n" s "\n" p "\n" q >> out
+                    print h >> out
+                    print s >> out
+                    print p >> out
+                    print q >> out
                 } else {
-                    print h "\n" s "\n" p "\n" q >> bad
+                    print h >> bad
+                    print s >> bad
+                    print p >> bad
+                    print q >> bad
                 }
             }
         ' out="$out" bad="$removed"
@@ -60,9 +66,15 @@ filter_broken_fastq() {
             NR % 4 == 0 {
                 q = $0; ql = length($0)
                 if (sl == ql) {
-                    print h "\n" s "\n" p "\n" q >> out
+                    print h >> out
+                    print s >> out
+                    print p >> out
+                    print q >> out
                 } else {
-                    print h "\n" s "\n" p "\n" q >> bad
+                    print h >> bad
+                    print s >> bad
+                    print p >> bad
+                    print q >> bad
                 }
             }
         ' out="$out" bad="$removed" "$input_file"
