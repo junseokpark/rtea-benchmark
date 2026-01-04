@@ -53,9 +53,9 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/function.sh"
 
 # Set JET-specific variables
-rnaSample=${FQ1}
-name=${SAMPLE_NAME}
-namePrefix=$(extract_name_prefix "${SAMPLE_NAME}")
+export rnaSample=${FQ1}
+export name=${SAMPLE_NAME}
+export namePrefix=$(extract_name_prefix "${SAMPLE_NAME}")
 
 # Create output directory for this sample
 dataDir="${OUTPUT_BASE}/${REL_PATH}/${SAMPLE_NAME}"

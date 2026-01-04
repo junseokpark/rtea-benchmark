@@ -17,29 +17,29 @@ run_jet_step1() {
     logDir="${outputDir}/log"
     logFile="${logDir}/step1_multisample_running_$(date +'%Y%m%d').log"
     
-    mkdir -p ${outputsDir}
+    mkdir -p "${outputsDir}"
     
     echo -e "\e[1m${dataDir}\e[0m" > "${logFile}"
     
     # Execute JET Step 1 using singularity
-    executeCMD="singularity exec --bind ${JET2_localPath}:${JET2_localPath} \
-        --bind ${dataDir}:${dataDir} \
-        ${JET2} ${JET2_localPath}/Step1_pipelineJETs_STAR.sh \
-        --samtools ${samtoolsBinDir} \
-        --star ${starBinDir} \
-        --read-length ${readLength} \
-        --organism ${organism} \
-        --genome ${genome} \
-        --database ${database} \
-        --ref-dir ${refDir} \
-        --fasta ${fastaFile} \
-        --gtf ${gtfGeneFile} \
-        --threads ${threads} \
-        --rna-sample ${rnaSample} \
-        --name ${name} \
-        --name-prefix ${namePrefix} \
-        --data-dir ${dataDir} \
-        --output ${outputsDir}"
+    executeCMD="singularity exec --bind \"${JET2_localPath}:${JET2_localPath}\" \
+        --bind \"${dataDir}:${dataDir}\" \
+        \"${JET2}\" \"${JET2_localPath}/Step1_pipelineJETs_STAR.sh\" \
+        --samtools \"${samtoolsBinDir}\" \
+        --star \"${starBinDir}\" \
+        --read-length \"${readLength}\" \
+        --organism \"${organism}\" \
+        --genome \"${genome}\" \
+        --database \"${database}\" \
+        --ref-dir \"${refDir}\" \
+        --fasta \"${fastaFile}\" \
+        --gtf \"${gtfGeneFile}\" \
+        --threads \"${threads}\" \
+        --rna-sample \"${rnaSample}\" \
+        --name \"${name}\" \
+        --name-prefix \"${namePrefix}\" \
+        --data-dir \"${dataDir}\" \
+        --output \"${outputsDir}\""
     
     echo $executeCMD >> "${logFile}"
     eval $executeCMD
@@ -65,23 +65,23 @@ run_jet_step2() {
     echo -e "\e[1m${dataDir}\e[0m" > "${logFile}"
     
     # Execute JET Step 2 using singularity
-    executeCMD="singularity exec ${JET2} ${JET2_localPath}/Step2_pipelineJETs_R.sh \
-        --jetprojectdir ${JET2_localPath} \
-        --data-dir ${dataDir} \
-        --outputs-dir ${outputsDir} \
-        --log-dir ${logDir} \
-        --star-dir ${starIndexesDir} \
-        --rna-sample ${rnaSample} \
-        --name ${name} \
-        --name-prefix ${namePrefix} \
-        --error-dir ${ErrorDir} \
-        --read-length ${readLength} \
-        --organism ${organism} \
-        --genome ${genome} \
-        --database ${database} \
-        --rlib-dir ${RlibDir} \
-        --repeats-file ${repeatsFile} \
-        --gff-file ${gffFile}"
+    executeCMD="singularity exec \"${JET2}\" \"${JET2_localPath}/Step2_pipelineJETs_R.sh\" \
+        --jetprojectdir \"${JET2_localPath}\" \
+        --data-dir \"${dataDir}\" \
+        --outputs-dir \"${outputsDir}\" \
+        --log-dir \"${logDir}\" \
+        --star-dir \"${starIndexesDir}\" \
+        --rna-sample \"${rnaSample}\" \
+        --name \"${name}\" \
+        --name-prefix \"${namePrefix}\" \
+        --error-dir \"${ErrorDir}\" \
+        --read-length \"${readLength}\" \
+        --organism \"${organism}\" \
+        --genome \"${genome}\" \
+        --database \"${database}\" \
+        --rlib-dir \"${RlibDir}\" \
+        --repeats-file \"${repeatsFile}\" \
+        --gff-file \"${gffFile}\""
     
     echo $executeCMD >> "${logFile}"
     eval $executeCMD
