@@ -9,6 +9,82 @@ extract_name_prefix() {
     echo "${sample_name%%_*}"
 }
 
+# Function to filter broken FASTQ records
+# Checks that sequence and quality lines have the same length
+# Returns the path to the filtered file (or original if no filtering needed)
+filter_broken_fastq() {
+    local fq="$1"
+
+    if [[ ! -f "$fq" ]]; then
+        echo "ERROR: FASTQ not found: $fq" >&2
+        return 1
+    fi
+
+    local out="${fq%.fq}.filtered.fq"
+    local removed="${fq%.fq}.removed.seqs"
+
+    # Handle gzipped files by decompressing first
+    local input_file="$fq"
+    local is_gzipped=false
+    if [[ "$fq" == *.gz ]]; then
+        is_gzipped=true
+        out="${fq%.fq.gz}.filtered.fq"
+        removed="${fq%.fq.gz}.removed.seqs"
+        input_file="$fq"
+    fi
+
+    # Clear output files if they exist
+    > "$out"
+    > "$removed"
+
+    # Process the FASTQ file
+    if [[ "$is_gzipped" == true ]]; then
+        zcat "$input_file" | awk '
+            NR % 4 == 1 { h = $0 }
+            NR % 4 == 2 { s = $0; sl = length($0) }
+            NR % 4 == 3 { p = $0 }
+            NR % 4 == 0 {
+                q = $0; ql = length($0)
+                if (sl == ql) {
+                    print h "\n" s "\n" p "\n" q >> out
+                } else {
+                    print h "\n" s "\n" p "\n" q >> bad
+                }
+            }
+        ' out="$out" bad="$removed"
+    else
+        awk '
+            NR % 4 == 1 { h = $0 }
+            NR % 4 == 2 { s = $0; sl = length($0) }
+            NR % 4 == 3 { p = $0 }
+            NR % 4 == 0 {
+                q = $0; ql = length($0)
+                if (sl == ql) {
+                    print h "\n" s "\n" p "\n" q >> out
+                } else {
+                    print h "\n" s "\n" p "\n" q >> bad
+                }
+            }
+        ' out="$out" bad="$removed" "$input_file"
+    fi
+
+    # Check if any sequences were removed
+    if [[ -f "$removed" && -s "$removed" ]]; then
+        echo "DONE:" >&2
+        echo "  valid FASTQ   → $out" >&2
+        echo "  removed reads → $removed" >&2
+        echo "$out"  # Return filtered file path
+    else
+        # No broken sequences found, remove empty files and use original
+        [[ -f "$removed" ]] && rm "$removed"
+        [[ -f "$out" ]] && rm "$out"
+        echo "No broken FASTQ records found in: $fq" >&2
+        echo "$fq"  # Return original file path
+    fi
+    
+    return 0
+}
+
 # Function to run JET Step 1
 run_jet_step1() {
     echo "[$(date)] Starting JET Step 1 - STAR Alignment..."
@@ -20,6 +96,28 @@ run_jet_step1() {
     mkdir -p "${outputsDir}"
     
     echo -e "\e[1m${dataDir}\e[0m" > "${logFile}"
+    
+    # Filter FASTQ files if FQ1 and FQ2 are set
+    if [[ -n "${FQ1}" && -f "${FQ1}" ]]; then
+        echo "[$(date)] Filtering FQ1: ${FQ1}" | tee -a "${logFile}"
+        filtered_fq1=$(filter_broken_fastq "${FQ1}")
+        if [ $? -ne 0 ]; then
+            echo "ERROR: Failed to filter FQ1: ${FQ1}" | tee -a "${logFile}"
+            return 1
+        fi
+        export FQ1="${filtered_fq1}"
+        export rnaSample="${filtered_fq1}"
+    fi
+    
+    if [[ -n "${FQ2}" && -f "${FQ2}" ]]; then
+        echo "[$(date)] Filtering FQ2: ${FQ2}" | tee -a "${logFile}"
+        filtered_fq2=$(filter_broken_fastq "${FQ2}")
+        if [ $? -ne 0 ]; then
+            echo "ERROR: Failed to filter FQ2: ${FQ2}" | tee -a "${logFile}"
+            return 1
+        fi
+        export FQ2="${filtered_fq2}"
+    fi
     
     # Execute JET Step 1 using singularity
     executeCMD="singularity exec --bind \"${JET2_localPath}:${JET2_localPath}\" \
@@ -106,6 +204,23 @@ run_teprof2() {
   : "${FQ1:?Need FQ1}"
   : "${FQ2:?Need FQ2}"
   : "${SAMPLE_NAME:?Need SAMPLE_NAME}"
+
+  # Filter FASTQ files before processing
+  echo "[$(date)] Filtering FQ1: ${FQ1}"
+  filtered_fq1=$(filter_broken_fastq "${FQ1}")
+  if [ $? -ne 0 ]; then
+      echo "ERROR: Failed to filter FQ1: ${FQ1}"
+      return 1
+  fi
+  FQ1="${filtered_fq1}"
+  
+  echo "[$(date)] Filtering FQ2: ${FQ2}"
+  filtered_fq2=$(filter_broken_fastq "${FQ2}")
+  if [ $? -ne 0 ]; then
+      echo "ERROR: Failed to filter FQ2: ${FQ2}"
+      return 1
+  fi
+  FQ2="${filtered_fq2}"
 
   # Threads
   threads="${threads:-16}"
