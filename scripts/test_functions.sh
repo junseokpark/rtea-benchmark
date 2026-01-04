@@ -223,7 +223,7 @@ setup_test_environment() {
     # Set JET-specific variables
     export rnaSample="${FQ1}"
     export name="${SAMPLE_NAME}"
-    export namePrefix="test"
+    export namePrefix=$(extract_name_prefix "${SAMPLE_NAME}")
     
     # Set other required variables with defaults if not set
     export threads="${threads:-4}"
