@@ -219,5 +219,48 @@ for coverage in 5X 10X 50X 100X 200X; do
 done
 
 echo "========================================="
-echo "All samples processed!"
+echo "All individual samples processed!"
+echo "========================================="
+
+# ============================================
+# TEProf2 Aggregation Step
+# ============================================
+# After all individual samples are processed, run TEProf2 aggregation
+# This step executes run_command.sh to aggregate results across all samples
+# and identify TE-derived transcripts
+
+echo ""
+echo "========================================="
+echo "Starting TEProf2 Aggregation"
+echo "========================================="
+
+# Set up aggregation environment
+export TEPROF2_AGGREGATION_DIR="${OUTPUT_BASE}/TEProf2_aggregated"
+export SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+export RUN_COMMAND_SCRIPT="${SCRIPT_DIR}/run_command.sh"
+
+# Note: dataDir should point to the root output directory containing all TEProf2 sample outputs
+export dataDir="${OUTPUT_BASE}"
+
+# Run aggregation
+run_teprof2_aggregation
+AGGREGATION_STATUS=$?
+
+if [ ${AGGREGATION_STATUS} -eq 0 ]; then
+    echo ""
+    echo "========================================="
+    echo "TEProf2 Aggregation completed successfully!"
+    echo "Results are in: ${TEPROF2_AGGREGATION_DIR}"
+    echo "========================================="
+else
+    echo ""
+    echo "========================================="
+    echo "TEProf2 Aggregation FAILED!"
+    echo "Check logs in: ${TEPROF2_AGGREGATION_DIR}"
+    echo "========================================="
+fi
+
+echo ""
+echo "========================================="
+echo "Pipeline execution completed!"
 echo "========================================="
