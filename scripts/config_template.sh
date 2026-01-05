@@ -31,29 +31,31 @@ export refDir="${REF_DIR}/hg38"
 
 # Sequencing Parameters
 export readLength=150  # UPDATE if your read length is different
-export organism="human"  # Options: human, mouse, etc.
-export genome="hg38"  # Genome version
-export database="database_name"  # UPDATE: Database name for JET
+export organism="Human"  # Options: Human, Mouse (note: capitalized per JET pipeline spec)
+export genome="hg38"  # Genome version (e.g., hg38, mm10)
+export database="ensembl"  # UPDATE: Database name for JET (e.g., ensembl)
 export threads=8
 
 # JET Sample Parameters (set these when running JET functions)
+# IMPORTANT: The revised JET pipeline now accepts FASTQ files directly via --fq1 and --fq2 arguments
 # These should be set per sample in your processing scripts:
-# export rnaSample="path/to/sample.fastq.gz"  # Path to RNA sample file
-# export name="sample_name"                    # Sample name
-# export namePrefix="prefix"                   # Sample name prefix
-# export outputDir="${TEST_LOG_DIR}/test_output"
+# export FQ1="path/to/sample.1.fq.gz"  # REQUIRED: Path to first FASTQ file (read 1)
+# export FQ2="path/to/sample.2.fq.gz"  # REQUIRED: Path to second FASTQ file (read 2)
 # export SAMPLE_NAME="sim200_AluY_blood"
-# export rnaSample="nonReferenceTE/AluY/5X/fq"
+# export outputDir="${OUTPUT_BASE}/output"
 
 # Reference Files for JET
-export fastaFile="Homo_sapiens_assembly38.fasta"  # REQUIRED
-export gtfGeneFile="gencode.v46.annotation.gtf"  # REQUIRED
-export starIndexesDir="star/idx"  # REQUIRED: STAR index directory
-export repeatsFile="${REF_DIR}/hg38.RepeatMasker-4.0.6-Dfam-2.0.reformat.txt"  # REQUIRED: Repeat elements file - Check Point
+export fastaFile="Homo_sapiens_assembly38.fasta"  # REQUIRED: Reference FASTA file name (in refDir)
+export gtfGeneFile="gencode.v46.annotation.gtf"  # REQUIRED: Gene annotation GTF file name (in refDir)
+export starIndexesDir="star/idx"  # REQUIRED: STAR index directory path (relative to refDir or absolute)
+export repeatsFile="${REF_DIR}/hg38.RepeatMasker-4.0.6-Dfam-2.0.reformat.txt"  # REQUIRED: Repeat elements file
 export gffFile="${REF_DIR}/hg38.RepeatMasker-4.0.6-Dfam-2.0.annotation.gff"  # REQUIRED: TE annotation in GFF format
 
 # R Configuration (within JET singularity image)
-export RlibDir="/usr/local/lib/R/library"  # Path within singularity image
+export RlibDir="/usr/local/lib/R/library"  # Path within singularity image (default: /usr/local/lib64/R/library)
+
+# JET Step 2 Specific Parameters
+export minJunction="2e7"  # Minimum junction size for JET Step 2 (default: 2e7)
 
 # ============================================
 # TEProf2 Configuration

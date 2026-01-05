@@ -62,11 +62,6 @@ process_sample() {
     FQ1=${fq1}
     FQ2=${fq2}
     
-    # Set JET-specific variables
-    export rnaSample=${fq1}
-    export name=${sample_name}
-    export namePrefix=$(extract_name_prefix "${sample_name}")
-    
     # Create output directory maintaining original structure
     dataDir="${OUTPUT_BASE}/${rel_path}/${sample_name}"
     mkdir -p "${dataDir}"

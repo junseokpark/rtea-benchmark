@@ -120,6 +120,7 @@ filter_broken_fastq() {
 }
 
 # Function to run JET Step 1
+# Updated to pass FASTQ files directly as arguments per revised JET pipeline
 run_jet_step1() {
     echo "[$(date)] Starting JET Step 1 - STAR Alignment..."
     
@@ -128,6 +129,7 @@ run_jet_step1() {
     logFile="${logDir}/step1_multisample_running_$(date +'%Y%m%d').log"
     
     mkdir -p "${outputsDir}"
+    mkdir -p "${logDir}"
     
     echo -e "\e[1m${dataDir}\e[0m" > "${logFile}"
     
@@ -139,8 +141,6 @@ run_jet_step1() {
             return 1
         fi
         export FQ1="${filtered_fq1}"
-        # rnaSample is used by JET and should match FQ1
-        export rnaSample="${filtered_fq1}"
     fi
     
     if [[ -n "${FQ2}" && -f "${FQ2}" ]]; then
@@ -152,9 +152,18 @@ run_jet_step1() {
         export FQ2="${filtered_fq2}"
     fi
     
-    # Execute JET Step 1 using singularity
-    executeCMD="singularity exec --bind \"${JET2_localPath}:${JET2_localPath}\" \
-        --bind \"${dataDir}:${dataDir}\" \
+    # Determine bind paths for singularity
+    # Need to bind directories containing FQ1, FQ2, output, and reference files
+    local fq1_dir=$(dirname "${FQ1}")
+    local fq2_dir=$(dirname "${FQ2}")
+    local bind_paths="${JET2_localPath}:${JET2_localPath},${outputsDir}:${outputsDir},${refDir}:${refDir},${fq1_dir}:${fq1_dir}"
+    if [[ "${fq2_dir}" != "${fq1_dir}" ]]; then
+        bind_paths="${bind_paths},${fq2_dir}:${fq2_dir}"
+    fi
+    
+    # Execute JET Step 1 using singularity with revised arguments
+    # Note: FASTQ files are now passed directly via --fq1 and --fq2
+    executeCMD="singularity exec --bind \"${bind_paths}\" \
         \"${JET2}\" \"${JET2_localPath}/Step1_pipelineJETs_STAR.sh\" \
         --samtools \"${samtoolsBinDir}\" \
         --star \"${starBinDir}\" \
@@ -162,14 +171,13 @@ run_jet_step1() {
         --organism \"${organism}\" \
         --genome \"${genome}\" \
         --database \"${database}\" \
+        --data-dir \"${dataDir}\" \
         --ref-dir \"${refDir}\" \
         --fasta \"${fastaFile}\" \
         --gtf \"${gtfGeneFile}\" \
+        --fq1 \"${FQ1}\" \
+        --fq2 \"${FQ2}\" \
         --threads \"${threads}\" \
-        --rna-sample \"${rnaSample}\" \
-        --name \"${name}\" \
-        --name-prefix \"${namePrefix}\" \
-        --data-dir \"${dataDir}\" \
         --output \"${outputsDir}\""
     
     echo $executeCMD >> "${logFile}"
@@ -185,34 +193,46 @@ run_jet_step1() {
 }
 
 # Function to run JET Step 2
+# Updated with revised arguments per new JET pipeline specification
 run_jet_step2() {
     echo "[$(date)] Starting JET Step 2 - R Analysis..."
     
-    outputsDir="${dataDir}/output"
-    logDir="${dataDir}/log"
-    ErrorDir="${dataDir}/err"
+    outputsDir="${outputDir}/output"
+    logDir="${outputDir}/log"
     logFile="${logDir}/step2_multisample_running_$(date +'%Y%m%d').log"
     
-    echo -e "\e[1m${dataDir}\e[0m" > "${logFile}"
+    mkdir -p "${logDir}"
     
-    # Execute JET Step 2 using singularity
-    executeCMD="singularity exec \"${JET2}\" \"${JET2_localPath}/Step2_pipelineJETs_R.sh\" \
+    echo -e "\e[1m${outputsDir}\e[0m" > "${logFile}"
+    
+    # Determine step1-fq1 path - use filtered FQ1 if available, otherwise use original
+    local step1_fq1="${FQ1}"
+    
+    # Set default minJunction if not provided
+    local minJunction="${minJunction:-2e7}"
+    
+    # Determine bind paths for singularity
+    local bind_paths="${JET2_localPath}:${JET2_localPath},${outputsDir}:${outputsDir},${starIndexesDir}:${starIndexesDir},${repeatsFile}:${repeatsFile},${gffFile}:${gffFile}"
+    if [[ -n "${step1_fq1}" ]]; then
+        local fq1_dir=$(dirname "${step1_fq1}")
+        bind_paths="${bind_paths},${fq1_dir}:${fq1_dir}"
+    fi
+    
+    # Execute JET Step 2 using singularity with revised arguments
+    executeCMD="singularity exec --bind \"${bind_paths}\" \
+        \"${JET2}\" \"${JET2_localPath}/Step2_pipelineJETs_R.sh\" \
         --jetprojectdir \"${JET2_localPath}\" \
-        --data-dir \"${dataDir}\" \
         --outputs-dir \"${outputsDir}\" \
-        --log-dir \"${logDir}\" \
         --star-dir \"${starIndexesDir}\" \
-        --rna-sample \"${rnaSample}\" \
-        --name \"${name}\" \
-        --name-prefix \"${namePrefix}\" \
-        --error-dir \"${ErrorDir}\" \
         --read-length \"${readLength}\" \
         --organism \"${organism}\" \
         --genome \"${genome}\" \
         --database \"${database}\" \
         --rlib-dir \"${RlibDir}\" \
         --repeats-file \"${repeatsFile}\" \
-        --gff-file \"${gffFile}\""
+        --gff-file \"${gffFile}\" \
+        --min-junction \"${minJunction}\" \
+        --step1-fq1 \"${step1_fq1}\""
     
     echo $executeCMD >> "${logFile}"
     eval $executeCMD
