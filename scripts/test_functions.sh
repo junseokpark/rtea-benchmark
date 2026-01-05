@@ -435,6 +435,117 @@ test_run_teprof2() {
     analyze_function_execution "${func_name}" "${exit_code}"
 }
 
+test_filter_broken_fastq() {
+    local func_name="filter_broken_fastq"
+    start_test "${func_name}"
+    
+    print_info "Testing FASTQ filtering function"
+    log_message "Testing ${func_name}"
+    
+    # Create test FASTQ files
+    local test_dir="${TEST_LOG_DIR}/fastq_test"
+    mkdir -p "${test_dir}"
+    
+    # Create a valid FASTQ file
+    local valid_fq="${test_dir}/valid.fq"
+    cat > "${valid_fq}" << 'EOF'
+@READ1
+ACGTACGTACGT
++
+IIIIIIIIIIII
+@READ2
+GGGGTTTTAAAA
++
+JJJJJJJJJJJJ
+EOF
+    
+    # Create a broken FASTQ file (mismatched lengths)
+    local broken_fq="${test_dir}/broken.fq"
+    cat > "${broken_fq}" << 'EOF'
+@READ1
+ACGTACGTACGT
++
+IIIIIII
+@READ2
+GGGGTTTTAAAA
++
+JJJJJJJJJJJJ
+@READ3
+CCCC
++
+QQQQ
+EOF
+    
+    print_info "Testing with valid FASTQ..."
+    local result=$(filter_broken_fastq "${valid_fq}")
+    local exit_code=$?
+    
+    if [ ${exit_code} -eq 0 ]; then
+        print_success "Valid FASTQ processed successfully"
+        print_info "Result: ${result}"
+        
+        # Should return original file path
+        if [[ "${result}" == *"valid.fq"* ]] && [[ ! "${result}" == *"filtered"* ]]; then
+            print_success "Correctly returned original file (no filtering needed)"
+        else
+            print_warning "Expected original file path, got: ${result}"
+        fi
+    else
+        print_error "Failed to process valid FASTQ"
+    fi
+    
+    print_info "Testing with broken FASTQ..."
+    result=$(filter_broken_fastq "${broken_fq}")
+    exit_code=$?
+    
+    if [ ${exit_code} -eq 0 ]; then
+        print_success "Broken FASTQ processed successfully"
+        print_info "Result: ${result}"
+        
+        # Should create filtered file
+        if [[ "${result}" == *"filtered.fq"* ]]; then
+            print_success "Created filtered file as expected"
+            
+            # Check if filtered file exists and has valid records
+            local filtered_file="${result}"
+            if [ -f "${filtered_file}" ]; then
+                local valid_count=$(grep -c "^@READ" "${filtered_file}" || true)
+                print_info "Filtered file contains ${valid_count} valid reads"
+                
+                # Check if removed.seqs file was created
+                local removed_file="${test_dir}/broken.removed.seqs"
+                if [ -f "${removed_file}" ]; then
+                    local removed_count=$(grep -c "^@READ" "${removed_file}" || true)
+                    print_info "Removed file contains ${removed_count} broken reads"
+                else
+                    print_warning "Removed sequences file not found"
+                fi
+            else
+                print_error "Filtered file not found: ${filtered_file}"
+            fi
+        else
+            print_warning "Expected filtered file path, got: ${result}"
+        fi
+    else
+        print_error "Failed to process broken FASTQ"
+    fi
+    
+    # Test with non-existent file
+    print_info "Testing with non-existent file..."
+    local nonexistent="${test_dir}/nonexistent.fq"
+    result=$(filter_broken_fastq "${nonexistent}" 2>&1)
+    exit_code=$?
+    
+    if [ ${exit_code} -ne 0 ]; then
+        print_success "Correctly failed for non-existent file"
+    else
+        print_error "Should have failed for non-existent file"
+    fi
+    
+    # Overall test result
+    pass_test "${func_name}" "FASTQ filtering function tests completed"
+}
+
 ################################################################################
 # Test Summary Report
 ################################################################################
@@ -503,6 +614,7 @@ main() {
     # Run tests for each function
     print_header "Running Function Tests"
     
+    test_filter_broken_fastq
     test_run_jet_step1
     test_run_jet_step2
     test_run_teprof2
