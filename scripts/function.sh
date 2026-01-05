@@ -251,10 +251,23 @@ run_jet_step2() {
     local minJunction="${minJunction:-2e7}"
     
     # Determine bind paths for singularity
-    local bind_paths="${JET2_localPath}:${JET2_localPath},${outputsDir}:${outputsDir},${starIndexesDir}:${starIndexesDir},${repeatsFile}:${repeatsFile},${gffFile}:${gffFile}"
+    # Bind parent directories of files, not the files themselves
+    local repeats_dir=$(dirname "${repeatsFile}")
+    local gff_dir=$(dirname "${gffFile}")
+    local bind_paths="${JET2_localPath}:${JET2_localPath},${outputsDir}:${outputsDir},${starIndexesDir}:${starIndexesDir},${repeats_dir}:${repeats_dir}"
+    
+    # Add gff directory if different from repeats directory
+    if [[ "${gff_dir}" != "${repeats_dir}" ]]; then
+        bind_paths="${bind_paths},${gff_dir}:${gff_dir}"
+    fi
+    
+    # Add FASTQ directory if step1_fq1 is set
     if [[ -n "${step1_fq1}" ]]; then
         local fq1_dir=$(dirname "${step1_fq1}")
-        bind_paths="${bind_paths},${fq1_dir}:${fq1_dir}"
+        # Only add if different from already bound paths
+        if [[ "${fq1_dir}" != "${repeats_dir}" && "${fq1_dir}" != "${gff_dir}" ]]; then
+            bind_paths="${bind_paths},${fq1_dir}:${fq1_dir}"
+        fi
     fi
     
     # Execute JET Step 2 using singularity with revised arguments
