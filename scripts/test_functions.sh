@@ -204,10 +204,9 @@ setup_test_environment() {
     print_header "Setting Up Test Environment"
     
     # Create test directories
-    #export dataDir="${TEST_LOG_DIR}/test_data"
     export outputDir="${TEST_LOG_DIR}/test_output"
     export SAMPLE_NAME="sim200_AluY_blood"
-    export rnaSample="nonReferenceTE/AluY/5X/fq"
+    local sample_rel_path="nonReferenceTE/AluY/5X/fq"
     
     mkdir -p "${outputDir}/output"
     mkdir -p "${outputDir}/log"
@@ -218,30 +217,34 @@ setup_test_environment() {
     
     # Set test fastq files - use dataDir from config or fallback to DATA_HOME
     local test_data_dir="${dataDir:-${DATA_HOME:-/home/junseokp/workspaces/data/rTea-simul/sims}}"
-    export FQ1="${test_data_dir}/${rnaSample}/${SAMPLE_NAME}.1.fq.gz"
-    export FQ2="${test_data_dir}/${rnaSample}/${SAMPLE_NAME}.2.fq.gz"
+    export FQ1="${test_data_dir}/${sample_rel_path}/${SAMPLE_NAME}.1.fq.gz"
+    export FQ2="${test_data_dir}/${sample_rel_path}/${SAMPLE_NAME}.2.fq.gz"
     
-    # Set JET-specific variables
-    export name="${SAMPLE_NAME}"
-    export namePrefix=$(extract_name_prefix "${SAMPLE_NAME}")
+    # Set dataDir for output directory structure
+    export dataDir="${test_data_dir}"
     
     # Set other required variables with defaults if not set
     export threads="${threads:-4}"
     export readLength="${readLength:-150}"
-    export organism="${organism:-human}"
+    export organism="${organism:-Human}"  # Updated to capitalize per JET spec
     export genome="${genome:-hg38}"
-    export database="${database:-test_db}"
+    export database="${database:-ensembl}"  # Updated default
     export refDir="${refDir:-${REF_DIR:-/home/junseokp/workspaces/data/rTea-simul/ref}}"
+    
+    # Set minJunction for JET Step 2 if not already set
+    export minJunction="${minJunction:-2e7}"
     
     print_info "Test environment variables set:"
     log_message "Test environment setup complete"
     echo "  dataDir=${dataDir}" | tee -a "${TEST_LOG}"
+    echo "  outputDir=${outputDir}" | tee -a "${TEST_LOG}"
     echo "  SAMPLE_NAME=${SAMPLE_NAME}" | tee -a "${TEST_LOG}"
     echo "  FQ1=${FQ1}" | tee -a "${TEST_LOG}"
     echo "  FQ2=${FQ2}" | tee -a "${TEST_LOG}"
-    echo "  rnaSample=${rnaSample}" | tee -a "${TEST_LOG}"
-    echo "  name=${name}" | tee -a "${TEST_LOG}"
-    echo "  namePrefix=${namePrefix}" | tee -a "${TEST_LOG}"
+    echo "  organism=${organism}" | tee -a "${TEST_LOG}"
+    echo "  genome=${genome}" | tee -a "${TEST_LOG}"
+    echo "  database=${database}" | tee -a "${TEST_LOG}"
+    echo "  minJunction=${minJunction}" | tee -a "${TEST_LOG}"
     echo ""
 }
 

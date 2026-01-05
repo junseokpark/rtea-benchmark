@@ -119,42 +119,96 @@ filter_broken_fastq() {
     return 0
 }
 
-# Function to run JET Step 1
+# Function to run JET Step 1 - STAR Alignment
+# 
+# Updated to pass FASTQ files directly as arguments per revised JET pipeline
+# 
+# Required environment variables:
+#   FQ1             - Path to first FASTQ file (read 1) 
+#   FQ2             - Path to second FASTQ file (read 2)
+#   outputDir       - Base output directory
+#   dataDir         - Data directory
+#   JET2            - Path to JET singularity image
+#   JET2_localPath  - Path to JET pipeline scripts
+#   samtoolsBinDir  - Path to samtools binary (within container)
+#   starBinDir      - Path to STAR binary (within container)
+#   readLength      - Read length (e.g., 100, 150)
+#   organism        - Organism name (e.g., Human, Mouse)
+#   genome          - Genome version (e.g., hg38, mm10)
+#   database        - Database name (e.g., ensembl)
+#   refDir          - Reference directory path
+#   fastaFile       - Reference FASTA filename (in refDir)
+#   gtfGeneFile     - Gene annotation GTF filename (in refDir)
+#   threads         - Number of CPU threads
+#   SAMPLE_NAME     - Sample name (for error reporting)
+#
 run_jet_step1() {
     echo "[$(date)] Starting JET Step 1 - STAR Alignment..."
+    
+    # Validate required variables
+    if [[ -z "${FQ1}" || -z "${FQ2}" ]]; then
+        echo "ERROR: FQ1 and FQ2 must be set" >&2
+        return 1
+    fi
+    
+    if [[ ! -f "${FQ1}" ]]; then
+        echo "ERROR: FQ1 file not found: ${FQ1}" >&2
+        return 1
+    fi
+    
+    if [[ ! -f "${FQ2}" ]]; then
+        echo "ERROR: FQ2 file not found: ${FQ2}" >&2
+        return 1
+    fi
     
     outputsDir="${outputDir}/output"
     logDir="${outputDir}/log"
     logFile="${logDir}/step1_multisample_running_$(date +'%Y%m%d').log"
     
     mkdir -p "${outputsDir}"
+    mkdir -p "${logDir}"
     
     echo -e "\e[1m${dataDir}\e[0m" > "${logFile}"
     
-    # Filter FASTQ files if FQ1 and FQ2 are set
-    if [[ -n "${FQ1}" && -f "${FQ1}" ]]; then
-        echo "[$(date)] Filtering FQ1: ${FQ1}" | tee -a "${logFile}"
-        if ! filtered_fq1=$(filter_broken_fastq "${FQ1}"); then
-            echo "ERROR: Failed to filter FQ1: ${FQ1}" | tee -a "${logFile}"
-            return 1
-        fi
-        export FQ1="${filtered_fq1}"
-        # rnaSample is used by JET and should match FQ1
-        export rnaSample="${filtered_fq1}"
+    # Filter FASTQ files
+    echo "[$(date)] Filtering FQ1: ${FQ1}" | tee -a "${logFile}"
+    if ! filtered_fq1=$(filter_broken_fastq "${FQ1}"); then
+        echo "ERROR: Failed to filter FQ1: ${FQ1}" | tee -a "${logFile}"
+        return 1
+    fi
+    export FQ1="${filtered_fq1}"
+    
+    echo "[$(date)] Filtering FQ2: ${FQ2}" | tee -a "${logFile}"
+    if ! filtered_fq2=$(filter_broken_fastq "${FQ2}"); then
+        echo "ERROR: Failed to filter FQ2: ${FQ2}" | tee -a "${logFile}"
+        return 1
+    fi
+    export FQ2="${filtered_fq2}"
+    
+    # Determine bind paths for singularity
+    # Need to bind directories containing FQ1, FQ2, output, and reference files
+    local fq1_dir=$(dirname "${FQ1}")
+    local fq2_dir=$(dirname "${FQ2}")
+    
+    # Validate directories exist
+    if [[ ! -d "${fq1_dir}" ]]; then
+        echo "ERROR: FQ1 directory not found: ${fq1_dir}" | tee -a "${logFile}"
+        return 1
     fi
     
-    if [[ -n "${FQ2}" && -f "${FQ2}" ]]; then
-        echo "[$(date)] Filtering FQ2: ${FQ2}" | tee -a "${logFile}"
-        if ! filtered_fq2=$(filter_broken_fastq "${FQ2}"); then
-            echo "ERROR: Failed to filter FQ2: ${FQ2}" | tee -a "${logFile}"
-            return 1
-        fi
-        export FQ2="${filtered_fq2}"
+    if [[ ! -d "${fq2_dir}" ]]; then
+        echo "ERROR: FQ2 directory not found: ${fq2_dir}" | tee -a "${logFile}"
+        return 1
     fi
     
-    # Execute JET Step 1 using singularity
-    executeCMD="singularity exec --bind \"${JET2_localPath}:${JET2_localPath}\" \
-        --bind \"${dataDir}:${dataDir}\" \
+    local bind_paths="${JET2_localPath}:${JET2_localPath},${outputsDir}:${outputsDir},${refDir}:${refDir},${fq1_dir}:${fq1_dir}"
+    if [[ "${fq2_dir}" != "${fq1_dir}" ]]; then
+        bind_paths="${bind_paths},${fq2_dir}:${fq2_dir}"
+    fi
+    
+    # Execute JET Step 1 using singularity with revised arguments
+    # Note: FASTQ files are now passed directly via --fq1 and --fq2
+    executeCMD="singularity exec --bind \"${bind_paths}\" \
         \"${JET2}\" \"${JET2_localPath}/Step1_pipelineJETs_STAR.sh\" \
         --samtools \"${samtoolsBinDir}\" \
         --star \"${starBinDir}\" \
@@ -162,14 +216,13 @@ run_jet_step1() {
         --organism \"${organism}\" \
         --genome \"${genome}\" \
         --database \"${database}\" \
+        --data-dir \"${dataDir}\" \
         --ref-dir \"${refDir}\" \
         --fasta \"${fastaFile}\" \
         --gtf \"${gtfGeneFile}\" \
+        --fq1 \"${FQ1}\" \
+        --fq2 \"${FQ2}\" \
         --threads \"${threads}\" \
-        --rna-sample \"${rnaSample}\" \
-        --name \"${name}\" \
-        --name-prefix \"${namePrefix}\" \
-        --data-dir \"${dataDir}\" \
         --output \"${outputsDir}\""
     
     echo $executeCMD >> "${logFile}"
@@ -184,35 +237,115 @@ run_jet_step1() {
     return 0
 }
 
-# Function to run JET Step 2
+# Function to run JET Step 2 - R Analysis
+#
+# Updated with revised arguments per new JET pipeline specification
+#
+# Required environment variables:
+#   outputDir        - Base output directory
+#   FQ1              - Path to FASTQ file from Step 1 (used as --step1-fq1)
+#   JET2             - Path to JET singularity image
+#   JET2_localPath   - Path to JET pipeline scripts
+#   starIndexesDir   - Path to STAR indexes directory
+#   readLength       - Read length (default: 100)
+#   organism         - Organism name (e.g., Human, Mouse)
+#   genome           - Genome version (e.g., hg38, mm10)
+#   database         - Database name (e.g., ensembl)
+#   RlibDir          - Path to R library directory (within container)
+#   repeatsFile      - Path to repeats file
+#   gffFile          - Path to GFF annotation file
+#   minJunction      - Minimum junction size (optional, default: 2e7)
+#   SAMPLE_NAME      - Sample name (for error reporting)
+#
 run_jet_step2() {
     echo "[$(date)] Starting JET Step 2 - R Analysis..."
     
-    outputsDir="${dataDir}/output"
-    logDir="${dataDir}/log"
-    ErrorDir="${dataDir}/err"
+    # Validate required variables
+    if [[ -z "${repeatsFile}" ]]; then
+        echo "ERROR: repeatsFile must be set" >&2
+        return 1
+    fi
+    
+    if [[ -z "${gffFile}" ]]; then
+        echo "ERROR: gffFile must be set" >&2
+        return 1
+    fi
+    
+    if [[ ! -f "${repeatsFile}" ]]; then
+        echo "ERROR: repeatsFile not found: ${repeatsFile}" >&2
+        return 1
+    fi
+    
+    if [[ ! -f "${gffFile}" ]]; then
+        echo "ERROR: gffFile not found: ${gffFile}" >&2
+        return 1
+    fi
+    
+    outputsDir="${outputDir}/output"
+    logDir="${outputDir}/log"
     logFile="${logDir}/step2_multisample_running_$(date +'%Y%m%d').log"
     
-    echo -e "\e[1m${dataDir}\e[0m" > "${logFile}"
+    mkdir -p "${logDir}"
     
-    # Execute JET Step 2 using singularity
-    executeCMD="singularity exec \"${JET2}\" \"${JET2_localPath}/Step2_pipelineJETs_R.sh\" \
+    echo -e "\e[1m${outputsDir}\e[0m" > "${logFile}"
+    
+    # Determine step1-fq1 path - use filtered FQ1 if available, otherwise use original
+    local step1_fq1="${FQ1}"
+    
+    # Set default minJunction if not provided
+    local minJunction="${minJunction:-2e7}"
+    
+    # Determine bind paths for singularity
+    # Bind parent directories of files, not the files themselves
+    local repeats_dir=$(dirname "${repeatsFile}")
+    local gff_dir=$(dirname "${gffFile}")
+    
+    # Validate directories exist
+    if [[ ! -d "${repeats_dir}" ]]; then
+        echo "ERROR: repeatsFile directory not found: ${repeats_dir}" | tee -a "${logFile}"
+        return 1
+    fi
+    
+    if [[ ! -d "${gff_dir}" ]]; then
+        echo "ERROR: gffFile directory not found: ${gff_dir}" | tee -a "${logFile}"
+        return 1
+    fi
+    
+    local bind_paths="${JET2_localPath}:${JET2_localPath},${outputsDir}:${outputsDir},${starIndexesDir}:${starIndexesDir},${repeats_dir}:${repeats_dir}"
+    
+    # Add gff directory if different from repeats directory
+    if [[ "${gff_dir}" != "${repeats_dir}" ]]; then
+        bind_paths="${bind_paths},${gff_dir}:${gff_dir}"
+    fi
+    
+    # Add FASTQ directory if step1_fq1 is set and valid
+    if [[ -n "${step1_fq1}" ]]; then
+        if [[ -f "${step1_fq1}" ]]; then
+            local fq1_dir=$(dirname "${step1_fq1}")
+            # Only add if different from already bound paths and directory exists
+            if [[ -d "${fq1_dir}" && "${fq1_dir}" != "${repeats_dir}" && "${fq1_dir}" != "${gff_dir}" ]]; then
+                bind_paths="${bind_paths},${fq1_dir}:${fq1_dir}"
+            fi
+        else
+            echo "WARNING: step1_fq1 file not found: ${step1_fq1}" | tee -a "${logFile}"
+        fi
+    fi
+    
+    # Execute JET Step 2 using singularity with revised arguments
+    executeCMD="singularity exec --bind \"${bind_paths}\" \
+        \"${JET2}\" \"${JET2_localPath}/Step2_pipelineJETs_R.sh\" \
         --jetprojectdir \"${JET2_localPath}\" \
-        --data-dir \"${dataDir}\" \
         --outputs-dir \"${outputsDir}\" \
-        --log-dir \"${logDir}\" \
         --star-dir \"${starIndexesDir}\" \
-        --rna-sample \"${rnaSample}\" \
-        --name \"${name}\" \
-        --name-prefix \"${namePrefix}\" \
-        --error-dir \"${ErrorDir}\" \
         --read-length \"${readLength}\" \
         --organism \"${organism}\" \
         --genome \"${genome}\" \
         --database \"${database}\" \
         --rlib-dir \"${RlibDir}\" \
         --repeats-file \"${repeatsFile}\" \
-        --gff-file \"${gffFile}\""
+        --gff-file \"${gffFile}\" \
+        --min-junction \"${minJunction}\" \
+        --step1-fq1 \"${step1_fq1}\""
     
     echo $executeCMD >> "${logFile}"
     eval $executeCMD
