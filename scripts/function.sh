@@ -119,8 +119,29 @@ filter_broken_fastq() {
     return 0
 }
 
-# Function to run JET Step 1
+# Function to run JET Step 1 - STAR Alignment
+# 
 # Updated to pass FASTQ files directly as arguments per revised JET pipeline
+# 
+# Required environment variables:
+#   FQ1             - Path to first FASTQ file (read 1) 
+#   FQ2             - Path to second FASTQ file (read 2)
+#   outputDir       - Base output directory
+#   dataDir         - Data directory
+#   JET2            - Path to JET singularity image
+#   JET2_localPath  - Path to JET pipeline scripts
+#   samtoolsBinDir  - Path to samtools binary (within container)
+#   starBinDir      - Path to STAR binary (within container)
+#   readLength      - Read length (e.g., 100, 150)
+#   organism        - Organism name (e.g., Human, Mouse)
+#   genome          - Genome version (e.g., hg38, mm10)
+#   database        - Database name (e.g., ensembl)
+#   refDir          - Reference directory path
+#   fastaFile       - Reference FASTA filename (in refDir)
+#   gtfGeneFile     - Gene annotation GTF filename (in refDir)
+#   threads         - Number of CPU threads
+#   SAMPLE_NAME     - Sample name (for error reporting)
+#
 run_jet_step1() {
     echo "[$(date)] Starting JET Step 1 - STAR Alignment..."
     
@@ -192,8 +213,26 @@ run_jet_step1() {
     return 0
 }
 
-# Function to run JET Step 2
+# Function to run JET Step 2 - R Analysis
+#
 # Updated with revised arguments per new JET pipeline specification
+#
+# Required environment variables:
+#   outputDir        - Base output directory
+#   FQ1              - Path to FASTQ file from Step 1 (used as --step1-fq1)
+#   JET2             - Path to JET singularity image
+#   JET2_localPath   - Path to JET pipeline scripts
+#   starIndexesDir   - Path to STAR indexes directory
+#   readLength       - Read length (default: 100)
+#   organism         - Organism name (e.g., Human, Mouse)
+#   genome           - Genome version (e.g., hg38, mm10)
+#   database         - Database name (e.g., ensembl)
+#   RlibDir          - Path to R library directory (within container)
+#   repeatsFile      - Path to repeats file
+#   gffFile          - Path to GFF annotation file
+#   minJunction      - Minimum junction size (optional, default: 2e7)
+#   SAMPLE_NAME      - Sample name (for error reporting)
+#
 run_jet_step2() {
     echo "[$(date)] Starting JET Step 2 - R Analysis..."
     
