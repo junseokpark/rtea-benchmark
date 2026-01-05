@@ -145,6 +145,22 @@ filter_broken_fastq() {
 run_jet_step1() {
     echo "[$(date)] Starting JET Step 1 - STAR Alignment..."
     
+    # Validate required variables
+    if [[ -z "${FQ1}" || -z "${FQ2}" ]]; then
+        echo "ERROR: FQ1 and FQ2 must be set" >&2
+        return 1
+    fi
+    
+    if [[ ! -f "${FQ1}" ]]; then
+        echo "ERROR: FQ1 file not found: ${FQ1}" >&2
+        return 1
+    fi
+    
+    if [[ ! -f "${FQ2}" ]]; then
+        echo "ERROR: FQ2 file not found: ${FQ2}" >&2
+        return 1
+    fi
+    
     outputsDir="${outputDir}/output"
     logDir="${outputDir}/log"
     logFile="${logDir}/step1_multisample_running_$(date +'%Y%m%d').log"
@@ -154,29 +170,37 @@ run_jet_step1() {
     
     echo -e "\e[1m${dataDir}\e[0m" > "${logFile}"
     
-    # Filter FASTQ files if FQ1 and FQ2 are set
-    if [[ -n "${FQ1}" && -f "${FQ1}" ]]; then
-        echo "[$(date)] Filtering FQ1: ${FQ1}" | tee -a "${logFile}"
-        if ! filtered_fq1=$(filter_broken_fastq "${FQ1}"); then
-            echo "ERROR: Failed to filter FQ1: ${FQ1}" | tee -a "${logFile}"
-            return 1
-        fi
-        export FQ1="${filtered_fq1}"
+    # Filter FASTQ files
+    echo "[$(date)] Filtering FQ1: ${FQ1}" | tee -a "${logFile}"
+    if ! filtered_fq1=$(filter_broken_fastq "${FQ1}"); then
+        echo "ERROR: Failed to filter FQ1: ${FQ1}" | tee -a "${logFile}"
+        return 1
     fi
+    export FQ1="${filtered_fq1}"
     
-    if [[ -n "${FQ2}" && -f "${FQ2}" ]]; then
-        echo "[$(date)] Filtering FQ2: ${FQ2}" | tee -a "${logFile}"
-        if ! filtered_fq2=$(filter_broken_fastq "${FQ2}"); then
-            echo "ERROR: Failed to filter FQ2: ${FQ2}" | tee -a "${logFile}"
-            return 1
-        fi
-        export FQ2="${filtered_fq2}"
+    echo "[$(date)] Filtering FQ2: ${FQ2}" | tee -a "${logFile}"
+    if ! filtered_fq2=$(filter_broken_fastq "${FQ2}"); then
+        echo "ERROR: Failed to filter FQ2: ${FQ2}" | tee -a "${logFile}"
+        return 1
     fi
+    export FQ2="${filtered_fq2}"
     
     # Determine bind paths for singularity
     # Need to bind directories containing FQ1, FQ2, output, and reference files
     local fq1_dir=$(dirname "${FQ1}")
     local fq2_dir=$(dirname "${FQ2}")
+    
+    # Validate directories exist
+    if [[ ! -d "${fq1_dir}" ]]; then
+        echo "ERROR: FQ1 directory not found: ${fq1_dir}" | tee -a "${logFile}"
+        return 1
+    fi
+    
+    if [[ ! -d "${fq2_dir}" ]]; then
+        echo "ERROR: FQ2 directory not found: ${fq2_dir}" | tee -a "${logFile}"
+        return 1
+    fi
+    
     local bind_paths="${JET2_localPath}:${JET2_localPath},${outputsDir}:${outputsDir},${refDir}:${refDir},${fq1_dir}:${fq1_dir}"
     if [[ "${fq2_dir}" != "${fq1_dir}" ]]; then
         bind_paths="${bind_paths},${fq2_dir}:${fq2_dir}"
@@ -236,6 +260,27 @@ run_jet_step1() {
 run_jet_step2() {
     echo "[$(date)] Starting JET Step 2 - R Analysis..."
     
+    # Validate required variables
+    if [[ -z "${repeatsFile}" ]]; then
+        echo "ERROR: repeatsFile must be set" >&2
+        return 1
+    fi
+    
+    if [[ -z "${gffFile}" ]]; then
+        echo "ERROR: gffFile must be set" >&2
+        return 1
+    fi
+    
+    if [[ ! -f "${repeatsFile}" ]]; then
+        echo "ERROR: repeatsFile not found: ${repeatsFile}" >&2
+        return 1
+    fi
+    
+    if [[ ! -f "${gffFile}" ]]; then
+        echo "ERROR: gffFile not found: ${gffFile}" >&2
+        return 1
+    fi
+    
     outputsDir="${outputDir}/output"
     logDir="${outputDir}/log"
     logFile="${logDir}/step2_multisample_running_$(date +'%Y%m%d').log"
@@ -254,6 +299,18 @@ run_jet_step2() {
     # Bind parent directories of files, not the files themselves
     local repeats_dir=$(dirname "${repeatsFile}")
     local gff_dir=$(dirname "${gffFile}")
+    
+    # Validate directories exist
+    if [[ ! -d "${repeats_dir}" ]]; then
+        echo "ERROR: repeatsFile directory not found: ${repeats_dir}" | tee -a "${logFile}"
+        return 1
+    fi
+    
+    if [[ ! -d "${gff_dir}" ]]; then
+        echo "ERROR: gffFile directory not found: ${gff_dir}" | tee -a "${logFile}"
+        return 1
+    fi
+    
     local bind_paths="${JET2_localPath}:${JET2_localPath},${outputsDir}:${outputsDir},${starIndexesDir}:${starIndexesDir},${repeats_dir}:${repeats_dir}"
     
     # Add gff directory if different from repeats directory
@@ -261,12 +318,16 @@ run_jet_step2() {
         bind_paths="${bind_paths},${gff_dir}:${gff_dir}"
     fi
     
-    # Add FASTQ directory if step1_fq1 is set
+    # Add FASTQ directory if step1_fq1 is set and valid
     if [[ -n "${step1_fq1}" ]]; then
-        local fq1_dir=$(dirname "${step1_fq1}")
-        # Only add if different from already bound paths
-        if [[ "${fq1_dir}" != "${repeats_dir}" && "${fq1_dir}" != "${gff_dir}" ]]; then
-            bind_paths="${bind_paths},${fq1_dir}:${fq1_dir}"
+        if [[ -f "${step1_fq1}" ]]; then
+            local fq1_dir=$(dirname "${step1_fq1}")
+            # Only add if different from already bound paths and directory exists
+            if [[ -d "${fq1_dir}" && "${fq1_dir}" != "${repeats_dir}" && "${fq1_dir}" != "${gff_dir}" ]]; then
+                bind_paths="${bind_paths},${fq1_dir}:${fq1_dir}"
+            fi
+        else
+            echo "WARNING: step1_fq1 file not found: ${step1_fq1}" | tee -a "${logFile}"
         fi
     fi
     
