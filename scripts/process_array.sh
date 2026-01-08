@@ -154,7 +154,7 @@ mkdir -p "${dataDir}"
 mkdir -p "${dataDir}/log"
 mkdir -p "${dataDir}/err"
 
-# Set outputDir for JET functions
+# Set outputDir for JET functions (function.sh expects this to be the per-sample directory)
 outputDir="${dataDir}"
 
 # ============================================

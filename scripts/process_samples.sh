@@ -137,7 +137,7 @@ process_sample() {
     mkdir -p "${dataDir}/log"
     mkdir -p "${dataDir}/err"
     
-    # Set outputDir for JET functions
+    # Set outputDir for JET functions (function.sh expects this to be the per-sample directory)
     outputDir="${dataDir}"
     
     echo "========================================="
@@ -187,6 +187,9 @@ echo "Data home: ${DATA_HOME}"
 echo "Output base: ${OUTPUT_BASE}"
 echo ""
 
+# Enable nullglob to handle empty globs gracefully
+shopt -s nullglob
+
 # Process nonReferenceTE samples
 for te_type in AluY L1HS LTR5 SVA_F; do
     for coverage in 5X 10X 50X 100X 200X; do
@@ -197,17 +200,18 @@ for te_type in AluY L1HS LTR5 SVA_F; do
             
             # Get all R1 files
             for fq1 in "${fq_dir}"/*.1.fq.gz; do
-                if [[ -f "$fq1" ]]; then
-                    # Construct R2 filename
-                    fq2="${fq1%.1.fq.gz}.2.fq.gz"
-                    
-                    if [[ -f "$fq2" ]]; then
-                        # Relative path for output
-                        rel_path="nonReferenceTE/${te_type}/${coverage}"
-                        process_sample "$fq1" "$fq2" "$rel_path"
-                    else
-                        echo "Warning: Missing R2 file for $fq1"
-                    fi
+                # Skip if no files match (nullglob will return empty, but explicit check is safer)
+                [[ -f "$fq1" ]] || continue
+                
+                # Construct R2 filename
+                fq2="${fq1%.1.fq.gz}.2.fq.gz"
+                
+                if [[ -f "$fq2" ]]; then
+                    # Relative path for output
+                    rel_path="nonReferenceTE/${te_type}/${coverage}"
+                    process_sample "$fq1" "$fq2" "$rel_path"
+                else
+                    echo "Warning: Missing R2 file for $fq1"
                 fi
             done
         fi
@@ -222,13 +226,12 @@ for coverage in 5X 10X 50X 100X 200X; do
         echo "Processing referenceTE/intron ${coverage} (regular)..."
         
         for fq1 in "${fq_dir}"/reftefu403_*_${coverage}.1.fq.gz; do
-            if [[ -f "$fq1" ]]; then
-                fq2="${fq1%.1.fq.gz}.2.fq.gz"
-                
-                if [[ -f "$fq2" ]]; then
-                    rel_path="referenceTE/intron/${coverage}/fq"
-                    process_sample "$fq1" "$fq2" "$rel_path"
-                fi
+            [[ -f "$fq1" ]] || continue
+            fq2="${fq1%.1.fq.gz}.2.fq.gz"
+            
+            if [[ -f "$fq2" ]]; then
+                rel_path="referenceTE/intron/${coverage}/fq"
+                process_sample "$fq1" "$fq2" "$rel_path"
             fi
         done
     fi
@@ -239,13 +242,12 @@ for coverage in 5X 10X 50X 100X 200X; do
         echo "Processing referenceTE/intron ${coverage} (mutated)..."
         
         for fq1 in "${fq_mut_dir}"/reftefu403_mut_*_${coverage}.1.fq.gz; do
-            if [[ -f "$fq1" ]]; then
-                fq2="${fq1%.1.fq.gz}.2.fq.gz"
-                
-                if [[ -f "$fq2" ]]; then
-                    rel_path="referenceTE/intron/${coverage}/fq_mut"
-                    process_sample "$fq1" "$fq2" "$rel_path"
-                fi
+            [[ -f "$fq1" ]] || continue
+            fq2="${fq1%.1.fq.gz}.2.fq.gz"
+            
+            if [[ -f "$fq2" ]]; then
+                rel_path="referenceTE/intron/${coverage}/fq_mut"
+                process_sample "$fq1" "$fq2" "$rel_path"
             fi
         done
     fi
@@ -259,13 +261,12 @@ for coverage in 5X 10X 50X 100X 200X; do
         echo "Processing referenceTE/TSS ${coverage} (regular)..."
         
         for fq1 in "${fq_dir}"/reftetss270_*_${coverage}.1.fq.gz; do
-            if [[ -f "$fq1" ]]; then
-                fq2="${fq1%.1.fq.gz}.2.fq.gz"
-                
-                if [[ -f "$fq2" ]]; then
-                    rel_path="referenceTE/TSS/${coverage}/fq"
-                    process_sample "$fq1" "$fq2" "$rel_path"
-                fi
+            [[ -f "$fq1" ]] || continue
+            fq2="${fq1%.1.fq.gz}.2.fq.gz"
+            
+            if [[ -f "$fq2" ]]; then
+                rel_path="referenceTE/TSS/${coverage}/fq"
+                process_sample "$fq1" "$fq2" "$rel_path"
             fi
         done
     fi
@@ -276,17 +277,19 @@ for coverage in 5X 10X 50X 100X 200X; do
         echo "Processing referenceTE/TSS ${coverage} (mutated)..."
         
         for fq1 in "${fq_mut_dir}"/reftetss270_mut_*_${coverage}.1.fq.gz; do
-            if [[ -f "$fq1" ]]; then
-                fq2="${fq1%.1.fq.gz}.2.fq.gz"
-                
-                if [[ -f "$fq2" ]]; then
-                    rel_path="referenceTE/TSS/${coverage}/fq_mut"
-                    process_sample "$fq1" "$fq2" "$rel_path"
-                fi
+            [[ -f "$fq1" ]] || continue
+            fq2="${fq1%.1.fq.gz}.2.fq.gz"
+            
+            if [[ -f "$fq2" ]]; then
+                rel_path="referenceTE/TSS/${coverage}/fq_mut"
+                process_sample "$fq1" "$fq2" "$rel_path"
             fi
         done
     fi
 done
+
+# Disable nullglob
+shopt -u nullglob
 
 echo "========================================="
 echo "All individual samples processed!"
