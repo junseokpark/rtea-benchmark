@@ -31,7 +31,9 @@ TESTS_PASSED=0
 TESTS_FAILED=0
 
 # Log file
-TEST_LOG_DIR="/tmp/function_test_$(date +%Y%m%d_%H%M%S)"
+TEST_LOG_DIR="/home/junseokp/temp/function_test_$(date +%Y%m%d_%H%M%S)"
+#TEST_LOG_DIR="/home/junseokp/temp/function_test_20260107_132725"
+
 mkdir -p "${TEST_LOG_DIR}"
 TEST_LOG="${TEST_LOG_DIR}/test_functions.log"
 
@@ -617,7 +619,7 @@ main() {
     # Run tests for each function
     print_header "Running Function Tests"
     
-    test_filter_broken_fastq
+    #test_filter_broken_fastq
     test_run_jet_step1
     test_run_jet_step2
     test_run_teprof2

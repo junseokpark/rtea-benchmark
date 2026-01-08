@@ -20,16 +20,11 @@ filter_broken_fastq() {
         return 1
     fi
 
-    # Determine base name and check if gzipped - handle multiple extensions
-    local base_out=""
-    local is_gzipped=false
-    
+    local base_out="" is_gzipped=false
     if [[ "$fq" == *.fq.gz ]]; then
-        is_gzipped=true
-        base_out="${fq%.fq.gz}"
+        is_gzipped=true; base_out="${fq%.fq.gz}"
     elif [[ "$fq" == *.fastq.gz ]]; then
-        is_gzipped=true
-        base_out="${fq%.fastq.gz}"
+        is_gzipped=true; base_out="${fq%.fastq.gz}"
     elif [[ "$fq" == *.fq ]]; then
         base_out="${fq%.fq}"
     elif [[ "$fq" == *.fastq ]]; then
@@ -41,82 +36,82 @@ filter_broken_fastq() {
 
     local out="${base_out}.filtered.fq"
     local removed="${base_out}.removed.seqs"
-    
-    # If original was gzipped, output gzipped filtered file too
     local out_final="$out"
-    if [[ "$is_gzipped" == true ]]; then
-        out_final="${out}.gz"
-    fi
+    [[ "$is_gzipped" == true ]] && out_final="${out}.gz"
 
-    # Remove old output files if they exist
-    [[ -f "$out" ]] && rm "$out"
-    [[ -f "$out_final" ]] && rm "$out_final"
-    [[ -f "$removed" ]] && rm "$removed"
+    rm -f "$out" "$out_final" "$removed"
 
-    # Process the FASTQ file
-    if [[ "$is_gzipped" == true ]]; then
-        zcat "$fq" | awk '
-            NR % 4 == 1 { h = $0 }
-            NR % 4 == 2 { s = $0; sl = length($0) }
-            NR % 4 == 3 { p = $0 }
-            NR % 4 == 0 {
-                q = $0; ql = length($0)
-                if (sl == ql) {
+    # Use gawk (preferred). Works with awk too on most systems.
+    local reader="cat"
+    [[ "$is_gzipped" == true ]] && reader="zcat"
+
+    $reader "$fq" | awk -v out="$out" -v bad="$removed" '
+        function flush_bad(reason) {
+            # Write the 4 lines we *think* are a record to bad, plus a comment line.
+            # (Comment is safe for inspection; if you want strict FASTQ in removed, delete comment line.)
+            print "#REASON=" reason >> bad
+            if (h!="") print h >> bad
+            if (s!="") print s >> bad
+            if (p!="") print p >> bad
+            if (q!="") print q >> bad
+        }
+
+        BEGIN { state=0; h=s=p=q="" }
+
+        {
+            line=$0
+            if (state==0) {
+                h=line; s=p=q=""
+                state=1
+            } else if (state==1) {
+                s=line
+                state=2
+            } else if (state==2) {
+                p=line
+                state=3
+            } else if (state==3) {
+                q=line
+                # Validate structure
+                if (substr(h,1,1) != "@") {
+                    flush_bad("header_not_at")
+                } else if (substr(p,1,1) != "+") {
+                    flush_bad("plus_line_missing_or_shifted")
+                } else if (length(s) != length(q)) {
+                    flush_bad("seq_qual_length_mismatch seqLen=" length(s) " qualLen=" length(q))
+                } else {
                     print h >> out
                     print s >> out
                     print p >> out
                     print q >> out
-                } else {
-                    print h >> bad
-                    print s >> bad
-                    print p >> bad
-                    print q >> bad
                 }
+                state=0
             }
-        ' out="$out" bad="$removed"
-    else
-        awk '
-            NR % 4 == 1 { h = $0 }
-            NR % 4 == 2 { s = $0; sl = length($0) }
-            NR % 4 == 3 { p = $0 }
-            NR % 4 == 0 {
-                q = $0; ql = length($0)
-                if (sl == ql) {
-                    print h >> out
-                    print s >> out
-                    print p >> out
-                    print q >> out
-                } else {
-                    print h >> bad
-                    print s >> bad
-                    print p >> bad
-                    print q >> bad
-                }
-            }
-        ' out="$out" bad="$removed" "$fq"
-    fi
+        }
 
-    # Gzip the filtered output if original was gzipped
+        END {
+            # If file ends mid-record, dump partial record
+            if (state != 0) {
+                flush_bad("truncated_record_EOF")
+            }
+        }
+    '
+
+    # gzip output if needed
     if [[ "$is_gzipped" == true && -f "$out" ]]; then
-        gzip "$out"
+        gzip -f "$out"
     fi
 
-    # Check if any sequences were removed
-    if [[ -f "$removed" && -s "$removed" ]]; then
+    # Return filtered or original
+    if [[ -s "$removed" ]]; then
         echo "DONE:" >&2
         echo "  valid FASTQ   → $out_final" >&2
         echo "  removed reads → $removed" >&2
-        echo "$out_final"  # Return filtered file path
+        echo "$out_final"
     else
-        # No broken sequences found, remove empty files and use original
-        [[ -f "$removed" ]] && rm "$removed"
-        [[ -f "$out" ]] && rm "$out"
-        [[ -f "$out_final" ]] && rm "$out_final"
+        rm -f "$removed" "$out" "$out_final"
         echo "No broken FASTQ records found in: $fq" >&2
-        echo "$fq"  # Return original file path
+        echo "$fq"
     fi
-    
-    return 0
 }
 
 # Function to run JET Step 1 - STAR Alignment
@@ -170,20 +165,20 @@ run_jet_step1() {
     
     echo -e "\e[1m${dataDir}\e[0m" > "${logFile}"
     
-    # Filter FASTQ files
-    echo "[$(date)] Filtering FQ1: ${FQ1}" | tee -a "${logFile}"
-    if ! filtered_fq1=$(filter_broken_fastq "${FQ1}"); then
-        echo "ERROR: Failed to filter FQ1: ${FQ1}" | tee -a "${logFile}"
-        return 1
-    fi
-    export FQ1="${filtered_fq1}"
+    # # Filter FASTQ files
+    # echo "[$(date)] Filtering FQ1: ${FQ1}" | tee -a "${logFile}"
+    # if ! filtered_fq1=$(filter_broken_fastq "${FQ1}"); then
+    #     echo "ERROR: Failed to filter FQ1: ${FQ1}" | tee -a "${logFile}"
+    #     return 1
+    # fi
+    # export FQ1="${filtered_fq1}"
     
-    echo "[$(date)] Filtering FQ2: ${FQ2}" | tee -a "${logFile}"
-    if ! filtered_fq2=$(filter_broken_fastq "${FQ2}"); then
-        echo "ERROR: Failed to filter FQ2: ${FQ2}" | tee -a "${logFile}"
-        return 1
-    fi
-    export FQ2="${filtered_fq2}"
+    # echo "[$(date)] Filtering FQ2: ${FQ2}" | tee -a "${logFile}"
+    # if ! filtered_fq2=$(filter_broken_fastq "${FQ2}"); then
+    #     echo "ERROR: Failed to filter FQ2: ${FQ2}" | tee -a "${logFile}"
+    #     return 1
+    # fi
+    # export FQ2="${filtered_fq2}"
     
     # Determine bind paths for singularity
     # Need to bind directories containing FQ1, FQ2, output, and reference files
@@ -331,8 +326,13 @@ run_jet_step2() {
         fi
     fi
     
-    # Execute JET Step 2 using singularity with revised arguments
-    executeCMD="singularity exec --bind \"${bind_paths}\" \
+    # Optional env flag for Singularity
+    R_LIBS_ENV_OPT=""
+    if [[ -n "${JET2_R_LIBS_USER:-}" && -d "${JET2_R_LIBS_USER}" ]]; then
+        R_LIBS_ENV_OPT="--env R_LIBS_USER=${JET2_R_LIBS_USER}"
+    fi
+
+    executeCMD="singularity exec ${R_LIBS_ENV_OPT} --bind \"${bind_paths}\" \
         \"${JET2}\" \"${JET2_localPath}/Step2_pipelineJETs_R.sh\" \
         --jetprojectdir \"${JET2_localPath}\" \
         --outputs-dir \"${outputsDir}\" \
@@ -341,6 +341,7 @@ run_jet_step2() {
         --organism \"${organism}\" \
         --genome \"${genome}\" \
         --database \"${database}\" \
+        --data-dir \"${dataDir}\" \
         --rlib-dir \"${RlibDir}\" \
         --repeats-file \"${repeatsFile}\" \
         --gff-file \"${gffFile}\" \

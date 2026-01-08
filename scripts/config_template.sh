@@ -19,18 +19,19 @@ export REF_DIR="/home/junseokp/workspaces/data/rTea-simul/ref"
 # JET Singularity Image Path
 export JET2="/home/sasidharp/jet_docker/jet.sif"  # REQUIRED: Path to JET singularity image (e.g., /home/user/jet_docker/jet.sif)
 export JET2_localPath="/home/junseokp/workspaces/projects/rtea/tools/JET_identification_pipeline"
+export JET2_R_LIBS_USER="/home/junseokp/R/x86_64-pc-linux-gnu-library/3.2"
 
 # Tool Paths (within JET singularity image)
 export samtoolsBinDir="/usr/local/bin"  # Path within singularity image
 export starBinDir="/usr/local/bin"  # Path within singularity image
 
 # Directories
-export outputDir=${OUTPUT_BASE}
+export outputDir="${OUTPUT_BASE}/JET2"
 export dataDir=${DATA_HOME}
 export refDir="${REF_DIR}/hg38"
 
 # Sequencing Parameters
-export readLength=150  # UPDATE if your read length is different
+export readLength=100  # UPDATE if your read length is different
 export organism="Human"  # Options: Human, Mouse (note: capitalized per JET pipeline spec)
 export genome="hg38"  # Genome version (e.g., hg38, mm10)
 export database="ensembl"  # UPDATE: Database name for JET (e.g., ensembl)
@@ -47,9 +48,9 @@ export threads=8
 # Reference Files for JET
 export fastaFile="Homo_sapiens_assembly38.fasta"  # REQUIRED: Reference FASTA file name (in refDir)
 export gtfGeneFile="gencode.v46.annotation.gtf"  # REQUIRED: Gene annotation GTF file name (in refDir)
-export starIndexesDir="star/idx"  # REQUIRED: STAR index directory path (relative to refDir or absolute)
-export repeatsFile="${REF_DIR}/hg38.RepeatMasker-4.0.6-Dfam-2.0.reformat.txt"  # REQUIRED: Repeat elements file
-export gffFile="${REF_DIR}/hg38.RepeatMasker-4.0.6-Dfam-2.0.annotation.gff"  # REQUIRED: TE annotation in GFF format
+export starIndexesDir="${refDir}/star/idx"  # REQUIRED: STAR index directory path (relative to refDir or absolute)
+export repeatsFile="${refDir}/hg38.RepeatMasker-4.0.6-Dfam-2.0.reformat.txt"  # REQUIRED: Repeat elements file
+export gffFile="${refDir}/hg38.RepeatMasker-4.0.6-Dfam-2.0.annotation.gff"  # REQUIRED: TE annotation in GFF format
 
 # R Configuration (within JET singularity image)
 export RlibDir="/usr/local/lib/R/library"  # Path within singularity image (default: /usr/local/lib64/R/library)
