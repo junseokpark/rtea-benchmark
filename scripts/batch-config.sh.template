@@ -1,0 +1,57 @@
+#!/bin/bash
+# SLURM Batch Job Configuration Template
+# Copy this file to batch-config.sh and customize for your cluster
+#
+# This file allows you to customize SBATCH settings without modifying the
+# main processing scripts (process_samples.sh and process_array.sh)
+#
+# Usage:
+#   1. Copy this file: cp batch-config.sh.template batch-config.sh
+#   2. Edit batch-config.sh with your desired SBATCH settings
+#   3. The scripts will automatically source batch-config.sh if it exists
+#
+# Alternatively, you can override these settings at submission time:
+#   sbatch --export=ALL,BATCH_TIME=48:00:00,BATCH_MEM=64G process_array.sh
+
+# ============================================
+# SBATCH Job Settings
+# ============================================
+
+# Job time limit (format: HH:MM:SS or D-HH:MM:SS)
+export BATCH_TIME="24:00:00"
+
+# Memory allocation per job
+export BATCH_MEM="32G"
+
+# Number of CPUs per task
+export BATCH_CPUS="8"
+
+# Job name prefix (will be appended with script-specific suffix)
+export BATCH_JOB_NAME="TE_analysis"
+
+# Array job settings (only used by process_array.sh)
+# Format: start-end or start-end:step
+export BATCH_ARRAY="1-400"
+
+# Maximum concurrent array jobs (% notation)
+export BATCH_ARRAY_THROTTLE="20"
+
+# Output and error log directory (relative to script location)
+export BATCH_LOG_DIR="logs"
+
+# Additional SBATCH options (e.g., partition, account, QOS)
+# Uncomment and modify as needed:
+# export BATCH_PARTITION="normal"
+# export BATCH_ACCOUNT="myaccount"
+# export BATCH_QOS="normal"
+# export BATCH_CONSTRAINT=""
+# export BATCH_EXCLUDE=""
+
+# ============================================
+# Notes
+# ============================================
+# - These settings will be used if batch-config.sh is sourced
+# - Settings can be overridden at submission time via sbatch --export
+# - If not set, scripts will use their built-in safe defaults
+# - SLURM #SBATCH directives are parsed before script execution,
+#   so these env vars are applied when the script is submitted
