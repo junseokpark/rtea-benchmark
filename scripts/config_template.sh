@@ -50,7 +50,7 @@ export fastaFile="Homo_sapiens_assembly38.fasta"  # REQUIRED: Reference FASTA fi
 export gtfGeneFile="gencode.v46.annotation.gtf"  # REQUIRED: Gene annotation GTF file name (in refDir)
 export starIndexesDir="${refDir}/star/idx"  # REQUIRED: STAR index directory path (relative to refDir or absolute)
 export repeatsFile="${refDir}/hg38.RepeatMasker-4.0.6-Dfam-2.0.reformat.txt"  # REQUIRED: Repeat elements file
-export gffFile="${refDir}/hg38.RepeatMasker-4.0.6-Dfam-2.0.annotation.gff"  # REQUIRED: TE annotation in GFF format
+export gffFile="${refDir}/Homo_sapiens.GRCh38.113.gtf"  # REQUIRED: TE annotation in GFF format
 
 # R Configuration (within JET singularity image)
 export RlibDir="/usr/local/lib/R/library"  # Path within singularity image (default: /usr/local/lib64/R/library)
