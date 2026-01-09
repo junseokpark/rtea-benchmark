@@ -56,6 +56,21 @@ OPTION A - Array Job (RECOMMENDED for HPC):
      #SBATCH --array=1-N%20
      (where N = number from step 1, minus 1 for header)
      
+     OPTIONAL - Enable Sample Chunking:
+     Process multiple samples per job sequentially for better workload control.
+     
+     Example: 100 samples with 20 samples per job:
+       export SAMPLES_PER_JOB="20"
+       #SBATCH --array=1-5%5  (ceiling(100/20) = 5 jobs)
+     
+     Configure via batch-config.sh:
+       cp batch-config.sh.template batch-config.sh
+       # Edit: export SAMPLES_PER_JOB="20"
+       # Edit: export BATCH_ARRAY="1-5"
+     
+     Or override at submission:
+       sbatch --export=ALL,SAMPLES_PER_JOB=20 process_array.sh
+     
   3. Make executable:
      chmod +x process_array.sh
      
