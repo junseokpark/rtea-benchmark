@@ -3,15 +3,12 @@
 # Copy this file to batch-config.sh and customize for your cluster
 #
 # This file allows you to customize SBATCH settings without modifying the
-# main processing scripts (process_samples.sh and process_array.sh)
+# main processing scripts.
 #
 # Usage:
 #   1. Copy this file: cp batch-config.sh.template batch-config.sh
 #   2. Edit batch-config.sh with your desired SBATCH settings
 #   3. The scripts will automatically source batch-config.sh if it exists
-#
-# Alternatively, you can override these settings at submission time:
-#   sbatch --export=ALL,BATCH_TIME=48:00:00,BATCH_MEM=64G process_array.sh
 
 # ============================================
 # SBATCH Job Settings
@@ -26,65 +23,55 @@ export BATCH_MEM="32G"
 # Number of CPUs per task
 export BATCH_CPUS="8"
 
-# Job name prefix (will be appended with script-specific suffix)
+# SLURM partition/queue name (optional, uses cluster default if not set)
+# Examples: "compute", "normal", "short", "long", "gpu"
+export SLURM_PARTITION=""
+
+# Job name prefix (will be appended with batch-specific suffix)
 export BATCH_JOB_NAME="TE_analysis"
 
-# Array job settings (only used by process_array.sh)
-# Format: start-end or start-end:step
-export BATCH_ARRAY="1-400"
-
-# Maximum concurrent array jobs (% notation)
-export BATCH_ARRAY_THROTTLE="20"
-
-# Number of samples to process per job (default: 1, no chunking)
-# Set to a higher value to process multiple samples per job sequentially
-# Example: SAMPLES_PER_JOB=20 with 100 samples creates 5 jobs
-export SAMPLES_PER_JOB="1"
-
-# Output and error log directory (relative to script location)
+# Output and error log directory (relative to sample_list_dir or script location)
 export BATCH_LOG_DIR="logs"
 
-# Additional SBATCH options (e.g., partition, account, QOS)
-# Uncomment and modify as needed:
-# export BATCH_PARTITION="normal"
+# Additional SBATCH options (uncomment and modify as needed)
+# Account/project for billing
 # export BATCH_ACCOUNT="myaccount"
+
+# Quality of Service (QOS)
 # export BATCH_QOS="normal"
-# export BATCH_CONSTRAINT=""
-# export BATCH_EXCLUDE=""
+
+# Node constraints/features
+# export BATCH_CONSTRAINT="haswell"
+
+# Exclude specific nodes
+# export BATCH_EXCLUDE="node001,node002"
+
+# Email notifications
+# export BATCH_MAIL_TYPE="END,FAIL"
+# export BATCH_MAIL_USER="user@example.com"
 
 # ============================================
 # Notes
 # ============================================
 # - These settings will be used if batch-config.sh is sourced
-# - Settings can be overridden at submission time via sbatch --export
+# - Settings can be overridden at submission time via command-line arguments
 # - If not set, scripts will use their built-in safe defaults
-# - SLURM #SBATCH directives are parsed before script execution,
-#   so these env vars are applied when the script is submitted
 #
 # ============================================
-# Sample Chunking Examples
+# Example Configurations by Cluster
 # ============================================
-# The SAMPLES_PER_JOB parameter allows you to process multiple samples
-# per array job, which can be useful for:
-# - Reducing the number of jobs submitted to the scheduler
-# - Grouping samples to match partition requirements
-# - Better workload control and resource utilization
 #
-# Example 1: Process 100 samples with 20 samples per job (5 jobs total)
-#   export SAMPLES_PER_JOB="20"
-#   export BATCH_ARRAY="1-5"
-#   sbatch process_array.sh
+# SLURM cluster with partitions:
+#   export SLURM_PARTITION="compute"
+#   export BATCH_TIME="48:00:00"
+#   export BATCH_MEM="64G"
+#   export BATCH_CPUS="16"
 #
-# Example 2: Override at submission time
-#   sbatch --export=ALL,SAMPLES_PER_JOB=20 process_array.sh
+# PBS/Torque cluster (note: these scripts are SLURM-specific):
+#   # You would need to adapt the scripts for PBS/Torque
 #
-# Example 3: 200 samples, 10 samples per job (20 jobs total)
-#   export SAMPLES_PER_JOB="10"
-#   export BATCH_ARRAY="1-20"
-#   sbatch process_array.sh
+# Local workstation (no SLURM):
+#   # Run process_batch_worker.sh directly without sbatch
 #
-# How to calculate BATCH_ARRAY range:
-#   1. Count samples: wc -l sample_list.txt (subtract 1 for header)
-#   2. Divide by SAMPLES_PER_JOB and round up
-#   3. Set BATCH_ARRAY="1-<result>"
-#   Example: 100 samples / 20 per job = 5, so BATCH_ARRAY="1-5"
+# ============================================
+

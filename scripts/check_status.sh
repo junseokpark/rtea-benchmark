@@ -1,10 +1,131 @@
 #!/bin/bash
+set -euo pipefail
 
-# Check processing status for all samples
-DATA_HOME=/home/junseokp/workspaces/data/rTea-simul/sims
-OUTPUT_BASE=${DATA_HOME}/output
-SAMPLE_LIST="sample_list.txt"
+# ============================================
+# Check Processing Status
+# ============================================
+# Check status of submitted jobs or sample processing
+#
+# Usage:
+#   ./check_status.sh --job_list <tsv_file>
+#   ./check_status.sh --sample_list_dir <dir>
+#   ./check_status.sh --sample_list <file>  (legacy mode)
+# ============================================
 
+# Default values
+JOB_LIST=""
+SAMPLE_LIST_DIR=""
+SAMPLE_LIST=""
+MODE=""
+
+# Usage function
+usage() {
+    cat << EOF
+Usage: $0 [OPTIONS]
+
+Check status of batch jobs or sample processing.
+
+OPTIONS:
+    --job_list FILE          Path to submitted_jobs.tsv file
+    --sample_list_dir DIR    Directory containing submitted_jobs.tsv
+    --sample_list FILE       Legacy: Check output files for samples (not SLURM jobs)
+    --help                   Show this help message
+
+EXAMPLES:
+    # Check SLURM job status
+    $0 --sample_list_dir sample_lists/L1/30x
+
+    # Check SLURM job status using TSV file
+    $0 --job_list sample_lists/L1/30x/submitted_jobs.tsv
+
+    # Legacy mode: Check output files
+    $0 --sample_list sample_list.txt
+
+OUTPUT:
+    For job status mode: Reports SLURM job states
+    For legacy mode: Reports sample processing completion status
+
+EOF
+    exit 0
+}
+
+# Parse command line arguments
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --job_list)
+            JOB_LIST="$2"
+            MODE="job_status"
+            shift 2
+            ;;
+        --sample_list_dir)
+            SAMPLE_LIST_DIR="$2"
+            MODE="job_status"
+            shift 2
+            ;;
+        --sample_list)
+            SAMPLE_LIST="$2"
+            MODE="legacy"
+            shift 2
+            ;;
+        --help|-h)
+            usage
+            ;;
+        *)
+            echo "ERROR: Unknown option: $1"
+            echo "Use --help for usage information"
+            exit 1
+            ;;
+    esac
+done
+
+# Determine mode if not set
+if [[ -z "${MODE}" ]]; then
+    # Default to legacy mode if sample_list.txt exists
+    if [[ -f "sample_list.txt" ]]; then
+        SAMPLE_LIST="sample_list.txt"
+        MODE="legacy"
+    else
+        echo "ERROR: No input specified"
+        echo "Use --help for usage information"
+        exit 1
+    fi
+fi
+
+# ============================================
+# Job Status Mode
+# ============================================
+if [[ "${MODE}" == "job_status" ]]; then
+    # Determine script directory
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    
+    # Call job_status_report.sh
+    if [[ -n "${SAMPLE_LIST_DIR}" ]]; then
+        exec "${SCRIPT_DIR}/job_status_report.sh" --sample_list_dir "${SAMPLE_LIST_DIR}"
+    elif [[ -n "${JOB_LIST}" ]]; then
+        exec "${SCRIPT_DIR}/job_status_report.sh" --job_list "${JOB_LIST}"
+    else
+        echo "ERROR: No valid input for job status mode"
+        exit 1
+    fi
+fi
+
+# ============================================
+# Legacy Mode - Check Output Files
+# ============================================
+if [[ ! -f "${SAMPLE_LIST}" ]]; then
+    echo "ERROR: Sample list file not found: ${SAMPLE_LIST}"
+    exit 1
+fi
+
+# Get OUTPUT_BASE from config or use default
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [[ -f "${SCRIPT_DIR}/config.sh" ]]; then
+    source "${SCRIPT_DIR}/config.sh"
+elif [[ -f "${SCRIPT_DIR}/config_template.sh" ]]; then
+    source "${SCRIPT_DIR}/config_template.sh"
+fi
+
+OUTPUT_BASE="${OUTPUT_BASE:-/home/junseokp/workspaces/data/rTea-simul/output}"
 REPORT_FILE="processing_status_$(date +%Y%m%d_%H%M%S).txt"
 
 echo "TE Analysis Pipeline - Processing Status Report" > ${REPORT_FILE}
@@ -223,3 +344,4 @@ else
     echo "  TEProf2: ${teprof2_complete}/${total_samples} complete"
     exit 2
 fi
+
