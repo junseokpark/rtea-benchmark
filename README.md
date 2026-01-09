@@ -143,6 +143,9 @@ Use sample chunking to process multiple samples per job sequentially. This is us
 
 **Use the calculator helper script (recommended):**
 ```bash
+# Make the script executable (first time only)
+chmod +x calculate_array_size.sh
+
 # Calculate the required array size automatically
 ./calculate_array_size.sh 20  # For 20 samples per job
 

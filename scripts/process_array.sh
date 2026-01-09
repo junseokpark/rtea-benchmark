@@ -140,6 +140,15 @@ if [[ ${END_SAMPLE} -gt ${TOTAL_SAMPLES} ]]; then
     END_SAMPLE=${TOTAL_SAMPLES}
 fi
 
+# Validate that we have samples to process
+if [[ ${START_SAMPLE} -gt ${TOTAL_SAMPLES} ]]; then
+    echo "ERROR: Array task ID ${SLURM_ARRAY_TASK_ID} is beyond the range of available samples"
+    echo "Total samples: ${TOTAL_SAMPLES}"
+    echo "Calculated start sample: ${START_SAMPLE}"
+    echo "Please adjust the SLURM array range to match the number of jobs needed"
+    exit 1
+fi
+
 echo "========================================="
 echo "Array Job Configuration"
 echo "========================================="
