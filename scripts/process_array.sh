@@ -23,6 +23,12 @@
 #   BATCH_ARRAY         - Array job range (default: 1-400)
 #   BATCH_ARRAY_THROTTLE - Max concurrent jobs (default: 20)
 #   BATCH_LOG_DIR       - Log directory (default: logs)
+#   SAMPLES_PER_JOB     - Number of samples per job (default: 1, enables chunking)
+#
+# Sample Chunking:
+#   Set SAMPLES_PER_JOB to process multiple samples per job sequentially.
+#   Example: 100 samples with SAMPLES_PER_JOB=20 will create 5 jobs, each processing 20 samples.
+#   Usage: sbatch --export=ALL,SAMPLES_PER_JOB=20 process_array.sh
 # ============================================
 
 #SBATCH --job-name=TE_array
@@ -115,28 +121,43 @@ if [[ ! -f "${SAMPLE_LIST}" ]]; then
 fi
 
 # ============================================
-# Parse Sample Information from Array Task ID
+# Sample Chunking Configuration
 # ============================================
 
-# Get sample info from array task ID (skip header line)
-SAMPLE_INFO=$(sed -n "$((SLURM_ARRAY_TASK_ID + 1))p" "${SAMPLE_LIST}")
+# Number of samples to process per job (default: 1, no chunking)
+SAMPLES_PER_JOB="${SAMPLES_PER_JOB:-1}"
 
-if [[ -z "${SAMPLE_INFO}" ]]; then
-    echo "ERROR: No sample information found for array task ID ${SLURM_ARRAY_TASK_ID}"
+# Calculate which samples this job should process
+# Count total samples (excluding header line)
+TOTAL_SAMPLES=$(tail -n +2 "${SAMPLE_LIST}" | wc -l)
+
+# Calculate start and end sample indices for this job
+START_SAMPLE=$(( (SLURM_ARRAY_TASK_ID - 1) * SAMPLES_PER_JOB + 1 ))
+END_SAMPLE=$(( SLURM_ARRAY_TASK_ID * SAMPLES_PER_JOB ))
+
+# Don't exceed total samples
+if [[ ${END_SAMPLE} -gt ${TOTAL_SAMPLES} ]]; then
+    END_SAMPLE=${TOTAL_SAMPLES}
+fi
+
+# Validate that we have samples to process
+if [[ ${START_SAMPLE} -gt ${TOTAL_SAMPLES} ]]; then
+    echo "ERROR: Array task ID ${SLURM_ARRAY_TASK_ID} is beyond the range of available samples"
+    echo "Total samples: ${TOTAL_SAMPLES}"
+    echo "Calculated start sample: ${START_SAMPLE}"
+    echo "Please adjust the SLURM array range to match the number of jobs needed"
     exit 1
 fi
 
-# Parse sample information
-SAMPLE_NAME=$(echo "${SAMPLE_INFO}" | awk '{print $1}')
-FQ1=$(echo "${SAMPLE_INFO}" | awk '{print $2}')
-FQ2=$(echo "${SAMPLE_INFO}" | awk '{print $3}')
-REL_PATH=$(echo "${SAMPLE_INFO}" | awk '{print $4}')
-
-# Validate parsed information
-if [[ -z "${SAMPLE_NAME}" || -z "${FQ1}" || -z "${FQ2}" ]]; then
-    echo "ERROR: Failed to parse sample information from: ${SAMPLE_INFO}"
-    exit 1
-fi
+echo "========================================="
+echo "Array Job Configuration"
+echo "========================================="
+echo "Array Task ID: ${SLURM_ARRAY_TASK_ID}"
+echo "Samples per job: ${SAMPLES_PER_JOB}"
+echo "Total samples: ${TOTAL_SAMPLES}"
+echo "Processing samples: ${START_SAMPLE} to ${END_SAMPLE}"
+echo "========================================="
+echo ""
 
 # ============================================
 # Source Shared Functions
@@ -145,65 +166,120 @@ fi
 source "${SCRIPT_DIR}/function.sh"
 
 # ============================================
-# Setup Sample Output Directory
+# Process Samples in Chunk
 # ============================================
 
-# Create output directory for this sample
-dataDir="${OUTPUT_BASE}/${REL_PATH}/${SAMPLE_NAME}"
-mkdir -p "${dataDir}"
-mkdir -p "${dataDir}/log"
-mkdir -p "${dataDir}/err"
+# Track overall status
+OVERALL_SUCCESS=0
+FAILED_SAMPLES=()
 
-# Set outputDir for JET functions (function.sh expects this to be the per-sample directory)
-outputDir="${dataDir}"
+# Loop through samples in this chunk
+for SAMPLE_IDX in $(seq ${START_SAMPLE} ${END_SAMPLE}); do
+    # Get sample info (skip header line, so add 1 to index)
+    SAMPLE_INFO=$(sed -n "$((SAMPLE_IDX + 1))p" "${SAMPLE_LIST}")
+    
+    if [[ -z "${SAMPLE_INFO}" ]]; then
+        echo "WARNING: No sample information found for sample index ${SAMPLE_IDX}"
+        continue
+    fi
+    
+    # Parse sample information
+    SAMPLE_NAME=$(echo "${SAMPLE_INFO}" | awk '{print $1}')
+    FQ1=$(echo "${SAMPLE_INFO}" | awk '{print $2}')
+    FQ2=$(echo "${SAMPLE_INFO}" | awk '{print $3}')
+    REL_PATH=$(echo "${SAMPLE_INFO}" | awk '{print $4}')
+    
+    # Validate parsed information
+    if [[ -z "${SAMPLE_NAME}" || -z "${FQ1}" || -z "${FQ2}" ]]; then
+        echo "ERROR: Failed to parse sample information from: ${SAMPLE_INFO}"
+        FAILED_SAMPLES+=("${SAMPLE_NAME:-UNKNOWN}")
+        OVERALL_SUCCESS=1
+        continue
+    fi
+    
+    # ============================================
+    # Setup Sample Output Directory
+    # ============================================
+    
+    # Create output directory for this sample
+    dataDir="${OUTPUT_BASE}/${REL_PATH}/${SAMPLE_NAME}"
+    mkdir -p "${dataDir}"
+    mkdir -p "${dataDir}/log"
+    mkdir -p "${dataDir}/err"
+    
+    # Set outputDir for JET functions (function.sh expects this to be the per-sample directory)
+    outputDir="${dataDir}"
+    
+    # ============================================
+    # Process Sample
+    # ============================================
+    
+    echo "========================================="
+    echo "Processing sample ${SAMPLE_IDX}/${TOTAL_SAMPLES}: ${SAMPLE_NAME}"
+    echo "Input files:"
+    echo "  R1: ${FQ1}"
+    echo "  R2: ${FQ2}"
+    echo "Output directory: ${dataDir}"
+    echo "========================================="
+    
+    # Run JET Step 1
+    run_jet_step1
+    JET_STEP1_STATUS=$?
+    
+    # Run JET Step 2 (only if Step 1 succeeded)
+    if [[ ${JET_STEP1_STATUS} -eq 0 ]]; then
+        run_jet_step2
+        JET_STEP2_STATUS=$?
+    else
+        JET_STEP2_STATUS=1
+    fi
+    
+    # Run TEProf2
+    run_teprof2
+    TEPROF2_STATUS=$?
+    
+    # ============================================
+    # Sample Summary
+    # ============================================
+    
+    echo ""
+    echo "========================================="
+    echo "Processing Summary for ${SAMPLE_NAME}"
+    echo "========================================="
+    echo "JET Step 1 Status: $([[ ${JET_STEP1_STATUS} -eq 0 ]] && echo 'SUCCESS' || echo 'FAILED')"
+    echo "JET Step 2 Status: $([[ ${JET_STEP2_STATUS} -eq 0 ]] && echo 'SUCCESS' || echo 'FAILED')"
+    echo "TEProf2 Status: $([[ ${TEPROF2_STATUS} -eq 0 ]] && echo 'SUCCESS' || echo 'FAILED')"
+    echo "========================================="
+    echo ""
+    
+    # Track if any tool failed
+    if [[ ${JET_STEP1_STATUS} -ne 0 ]] || [[ ${JET_STEP2_STATUS} -ne 0 ]] || [[ ${TEPROF2_STATUS} -ne 0 ]]; then
+        echo "ERROR: One or more pipeline steps failed for ${SAMPLE_NAME}"
+        FAILED_SAMPLES+=("${SAMPLE_NAME}")
+        OVERALL_SUCCESS=1
+    else
+        echo "SUCCESS: All pipeline steps completed for ${SAMPLE_NAME}"
+    fi
+done
 
 # ============================================
-# Process Sample
-# ============================================
-
-echo "========================================="
-echo "Array Job ID: ${SLURM_ARRAY_TASK_ID}"
-echo "Processing sample: ${SAMPLE_NAME}"
-echo "Input files:"
-echo "  R1: ${FQ1}"
-echo "  R2: ${FQ2}"
-echo "Output directory: ${dataDir}"
-echo "========================================="
-
-# Run JET Step 1
-run_jet_step1
-JET_STEP1_STATUS=$?
-
-# Run JET Step 2 (only if Step 1 succeeded)
-if [[ ${JET_STEP1_STATUS} -eq 0 ]]; then
-    run_jet_step2
-    JET_STEP2_STATUS=$?
-else
-    JET_STEP2_STATUS=1
-fi
-
-# Run TEProf2
-run_teprof2
-TEPROF2_STATUS=$?
-
-# ============================================
-# Summary
+# Job Summary
 # ============================================
 
 echo ""
 echo "========================================="
-echo "Processing Summary for ${SAMPLE_NAME}"
+echo "Job Summary - Array Task ${SLURM_ARRAY_TASK_ID}"
 echo "========================================="
-echo "JET Step 1 Status: $([[ ${JET_STEP1_STATUS} -eq 0 ]] && echo 'SUCCESS' || echo 'FAILED')"
-echo "JET Step 2 Status: $([[ ${JET_STEP2_STATUS} -eq 0 ]] && echo 'SUCCESS' || echo 'FAILED')"
-echo "TEProf2 Status: $([[ ${TEPROF2_STATUS} -eq 0 ]] && echo 'SUCCESS' || echo 'FAILED')"
-echo "========================================="
+echo "Processed samples: ${START_SAMPLE} to ${END_SAMPLE}"
+echo "Total samples processed: $(( END_SAMPLE - START_SAMPLE + 1 ))"
 
-# Exit with error if any tool failed
-if [[ ${JET_STEP1_STATUS} -ne 0 ]] || [[ ${JET_STEP2_STATUS} -ne 0 ]] || [[ ${TEPROF2_STATUS} -ne 0 ]]; then
-    echo "ERROR: One or more pipeline steps failed for ${SAMPLE_NAME}"
+if [[ ${#FAILED_SAMPLES[@]} -gt 0 ]]; then
+    echo "Failed samples: ${#FAILED_SAMPLES[@]}"
+    printf '  - %s\n' "${FAILED_SAMPLES[@]}"
+    echo "========================================="
     exit 1
+else
+    echo "All samples completed successfully!"
+    echo "========================================="
+    exit 0
 fi
-
-echo "SUCCESS: All pipeline steps completed for ${SAMPLE_NAME}"
-exit 0

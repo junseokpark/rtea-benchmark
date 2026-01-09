@@ -122,13 +122,59 @@ This creates `sample_list.txt` with all samples to process.
 Check the number of samples:
 ```bash
 wc -l sample_list.txt
+# Subtract 1 for header to get total sample count
 ```
+
+**Option A: Process one sample per job (default)**
 
 Edit `process_array.sh` and update the array size:
 ```bash
 #SBATCH --array=1-N%20
 # where N = total number of samples (minus 1 for header)
 # %20 limits to 20 concurrent jobs
+```
+
+**Option B: Process multiple samples per job (chunking)**
+
+Use sample chunking to process multiple samples per job sequentially. This is useful for:
+- Reducing the number of jobs submitted to the scheduler
+- Grouping samples to match partition requirements (e.g., defq15*, defq610)
+- Better workload control and resource utilization
+
+**Use the calculator helper script (recommended):**
+```bash
+# Make the script executable (first time only)
+chmod +x calculate_array_size.sh
+
+# Calculate the required array size automatically
+./calculate_array_size.sh 20  # For 20 samples per job
+
+# This will show:
+# - Total samples and jobs needed
+# - SBATCH --array configuration
+# - SAMPLES_PER_JOB setting
+# - Sample distribution across jobs
+```
+
+**Or calculate manually:**
+```bash
+# Formula: Number of jobs = ceiling(total_samples / samples_per_job)
+# Example: 100 samples with 20 samples per job = 5 jobs
+```
+
+Configure via batch-config.sh:
+```bash
+cp batch-config.sh.template batch-config.sh
+# Edit batch-config.sh:
+export SAMPLES_PER_JOB="20"  # Process 20 samples per job
+export BATCH_ARRAY="1-5"      # 100 samples / 20 per job = 5 jobs
+```
+
+Or override at submission time:
+```bash
+# For 100 samples with 20 samples per job:
+sbatch --export=ALL,SAMPLES_PER_JOB=20 process_array.sh
+# Note: You still need to adjust #SBATCH --array in the script to 1-5
 ```
 
 **Step 3: Submit array job**
@@ -141,6 +187,21 @@ sbatch process_array.sh
 ```bash
 squeue -u $USER
 sacct -j JOBID --format=JobID,JobName,State,ExitCode
+```
+
+**Sample Chunking Examples:**
+```bash
+# Example 1: 100 samples, 20 per job = 5 jobs
+export SAMPLES_PER_JOB="20"
+# Set #SBATCH --array=1-5%5 in process_array.sh
+
+# Example 2: 200 samples, 10 per job = 20 jobs  
+export SAMPLES_PER_JOB="10"
+# Set #SBATCH --array=1-20%10 in process_array.sh
+
+# Example 3: 150 samples, 25 per job = 6 jobs
+export SAMPLES_PER_JOB="25"
+# Set #SBATCH --array=1-6%6 in process_array.sh
 ```
 
 ### Option 2: Sequential Processing

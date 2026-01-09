@@ -36,6 +36,11 @@ export BATCH_ARRAY="1-400"
 # Maximum concurrent array jobs (% notation)
 export BATCH_ARRAY_THROTTLE="20"
 
+# Number of samples to process per job (default: 1, no chunking)
+# Set to a higher value to process multiple samples per job sequentially
+# Example: SAMPLES_PER_JOB=20 with 100 samples creates 5 jobs
+export SAMPLES_PER_JOB="1"
+
 # Output and error log directory (relative to script location)
 export BATCH_LOG_DIR="logs"
 
@@ -55,3 +60,31 @@ export BATCH_LOG_DIR="logs"
 # - If not set, scripts will use their built-in safe defaults
 # - SLURM #SBATCH directives are parsed before script execution,
 #   so these env vars are applied when the script is submitted
+#
+# ============================================
+# Sample Chunking Examples
+# ============================================
+# The SAMPLES_PER_JOB parameter allows you to process multiple samples
+# per array job, which can be useful for:
+# - Reducing the number of jobs submitted to the scheduler
+# - Grouping samples to match partition requirements
+# - Better workload control and resource utilization
+#
+# Example 1: Process 100 samples with 20 samples per job (5 jobs total)
+#   export SAMPLES_PER_JOB="20"
+#   export BATCH_ARRAY="1-5"
+#   sbatch process_array.sh
+#
+# Example 2: Override at submission time
+#   sbatch --export=ALL,SAMPLES_PER_JOB=20 process_array.sh
+#
+# Example 3: 200 samples, 10 samples per job (20 jobs total)
+#   export SAMPLES_PER_JOB="10"
+#   export BATCH_ARRAY="1-20"
+#   sbatch process_array.sh
+#
+# How to calculate BATCH_ARRAY range:
+#   1. Count samples: wc -l sample_list.txt (subtract 1 for header)
+#   2. Divide by SAMPLES_PER_JOB and round up
+#   3. Set BATCH_ARRAY="1-<result>"
+#   Example: 100 samples / 20 per job = 5, so BATCH_ARRAY="1-5"
