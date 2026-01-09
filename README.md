@@ -141,7 +141,19 @@ Use sample chunking to process multiple samples per job sequentially. This is us
 - Grouping samples to match partition requirements (e.g., defq15*, defq610)
 - Better workload control and resource utilization
 
-Calculate the number of jobs needed:
+**Use the calculator helper script (recommended):**
+```bash
+# Calculate the required array size automatically
+./calculate_array_size.sh 20  # For 20 samples per job
+
+# This will show:
+# - Total samples and jobs needed
+# - SBATCH --array configuration
+# - SAMPLES_PER_JOB setting
+# - Sample distribution across jobs
+```
+
+**Or calculate manually:**
 ```bash
 # Formula: Number of jobs = ceiling(total_samples / samples_per_job)
 # Example: 100 samples with 20 samples per job = 5 jobs
