@@ -448,7 +448,7 @@ run_teprof2() {
       --genomeDir "'"${STAR_INDEX}"'" \
       --readFilesIn "'"${FQ1}"'" "'"${FQ2}"'" \
       --readFilesCommand zcat \
-      --outFileNamePrefix '"${SAMPLE_NAME}"'. \
+      --outFileNamePrefix "'"${SAMPLE_NAME}"'." \
       --outSAMtype BAM SortedByCoordinate \
       --outSAMattributes NH HI AS nM XS
   '
