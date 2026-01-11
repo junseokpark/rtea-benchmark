@@ -414,22 +414,22 @@ run_teprof2() {
   local arguments_dir=$(dirname "${ARGUMENTS_TXT}")
 
   # Build bind_paths - include all necessary directories
-  local bind_paths="${TEProf2_Local_Path}:${TEProf2_Local_Path},${outRoot}:${outRoot},${refDir}:${refDir},${fq1_dir}:${fq1_dir}"
+  local bind_paths="${TEProf2_Local_Path},${outRoot},${refDir},${fq1_dir}"
   
   # Add FQ2 directory if different from FQ1
   if [[ "${fq2_dir}" != "${fq1_dir}" ]]; then
-    bind_paths="${bind_paths},${fq2_dir}:${fq2_dir}"
+    bind_paths="${bind_paths},${fq2_dir}"
   fi
   
   # Add additional directories if they are different from refDir
   if [[ "${star_index_dir}" != "${refDir}" ]]; then
-    bind_paths="${bind_paths},${star_index_dir}:${star_index_dir}"
+    bind_paths="${bind_paths},${star_index_dir}"
   fi
   if [[ "${gencode_gtf_dir}" != "${refDir}" ]]; then
-    bind_paths="${bind_paths},${gencode_gtf_dir}:${gencode_gtf_dir}"
+    bind_paths="${bind_paths},${gencode_gtf_dir}"
   fi
   if [[ "${arguments_dir}" != "${refDir}" ]]; then
-    bind_paths="${bind_paths},${arguments_dir}:${arguments_dir}"
+    bind_paths="${bind_paths},${arguments_dir}"
   fi
 
   # Determine STAR binary path
@@ -441,47 +441,47 @@ run_teprof2() {
   # ---------- Step 0: Align FASTQ -> sorted BAM ----------
   echo "[$(date)] Step 0: Alignment (STAR) -> BAM"
 
-  singularity exec --bind "${bind_paths}" "${TEProf2}" bash -c "
+  singularity exec --bind "${bind_paths}" "${TEProf2}" bash -c '
     source activate teprof2 && \
-    ${star_cmd} \
-      --runThreadN ${threads} \
-      --genomeDir ${STAR_INDEX} \
-      --readFilesIn ${FQ1} ${FQ2} \
+    '"${star_cmd}"' \
+      --runThreadN '"${threads}"' \
+      --genomeDir "'"${STAR_INDEX}"'" \
+      --readFilesIn "'"${FQ1}"'" "'"${FQ2}"'" \
       --readFilesCommand zcat \
-      --outFileNamePrefix ${SAMPLE_NAME}. \
+      --outFileNamePrefix '"${SAMPLE_NAME}"'. \
       --outSAMtype BAM SortedByCoordinate \
       --outSAMattributes NH HI AS nM XS
-  "
+  '
 
   BAM="${outRoot}/${SAMPLE_NAME}.Aligned.sortedByCoord.out.bam"
 
-  singularity exec --bind "${bind_paths}" "${TEProf2}" bash -c "
+  singularity exec --bind "${bind_paths}" "${TEProf2}" bash -c '
     source activate teprof2 && \
-    samtools index -@ ${threads} ${BAM}
-  "
+    samtools index -@ '"${threads}"' "'"${BAM}"'"
+  '
 
   # ---------- Step 1: Assemble transcripts -> sample GTF ----------
   echo "[$(date)] Step 1: Transcript assembly (StringTie) -> GTF"
 
   SAMPLE_GTF="${outRoot}/${SAMPLE_NAME}.stringtie.gtf"
 
-  singularity exec --bind "${bind_paths}" "${TEProf2}" bash -c "
+  singularity exec --bind "${bind_paths}" "${TEProf2}" bash -c '
     source activate teprof2 && \
-    stringtie ${BAM} \
-      -p ${threads} \
-      -G ${GENCODE_GTF} \
-      -o ${SAMPLE_GTF}
-  "
+    stringtie "'"${BAM}"'" \
+      -p '"${threads}"' \
+      -G "'"${GENCODE_GTF}"'" \
+      -o "'"${SAMPLE_GTF}"'"
+  '
 
   # ---------- Step 2: TEProf2 annotation (normal) ----------
   echo "[$(date)] Step 2: TEProf2 RepeatMasker annotation"
 
-  singularity exec --bind "${bind_paths}" "${TEProf2}" bash -c "
+  singularity exec --bind "${bind_paths}" "${TEProf2}" bash -c '
     source activate teprof2 && \
-    ${TEProf2_Local_Path}/rmskhg38_annotate_gtf_update_test_tpm.py \
-      ${SAMPLE_GTF} \
-      ${ARGUMENTS_TXT}
-  "
+    '"${TEProf2_Local_Path}"'/rmskhg38_annotate_gtf_update_test_tpm.py \
+      "'"${SAMPLE_GTF}"'" \
+      "'"${ARGUMENTS_TXT}"'"
+  '
 
   annotated_gtf="${SAMPLE_GTF}_annotated_filtered_test_all"
   [[ -f "${annotated_gtf}" ]] || { echo "ERROR: missing ${annotated_gtf}"; return 1; }
@@ -489,10 +489,10 @@ run_teprof2() {
   # ---------- Step 3: TPM processing ----------
   echo "[$(date)] Step 3: TPM processing"
   
-  singularity exec --bind "${bind_paths}" "${TEProf2}" bash -c "
+  singularity exec --bind "${bind_paths}" "${TEProf2}" bash -c '
     source activate teprof2 && \
-    annotationtpmprocess.py ${annotated_gtf}
-  "
+    annotationtpmprocess.py "'"${annotated_gtf}"'"
+  '
 
   tpm_processed="${annotated_gtf}_annotation_tpm_processed"
   [[ -f "${tpm_processed}" ]] || { echo "ERROR: missing ${tpm_processed}"; return 1; }
@@ -500,10 +500,10 @@ run_teprof2() {
   # ---------- Step 4: Filter read candidates ----------
   echo "[$(date)] Step 4: Filter read candidates"
   
-  singularity exec --bind "${bind_paths}" "${TEProf2}" bash -c "
+  singularity exec --bind "${bind_paths}" "${TEProf2}" bash -c '
     source activate teprof2 && \
-    ${TEProf2_Local_Path}/filterReadCandidates.R ${tpm_processed} ${BAM}
-  "
+    '"${TEProf2_Local_Path}"'/filterReadCandidates.R "'"${tpm_processed}"'" "'"${BAM}"'"
+  '
 
   filtered_output="${tpm_processed}_filtered"
   [[ -f "${filtered_output}" ]] || { echo "ERROR: missing ${filtered_output}"; return 1; }
