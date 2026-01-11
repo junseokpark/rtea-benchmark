@@ -64,6 +64,16 @@ export minJunction="2e7"  # Minimum junction size for JET Step 2 (default: 2e7)
 
 export TEProf2="/home/sasidharp/jet_docker/teprof2.sif"  # Singularity container path
 
+# TEProf2 Local Path Configuration
+# Path to TEProf2 scripts/tools on the host system (to be bound into the container)
+# This directory contains R scripts (aggregateProcessedAnnotation.R, filterReadCandidates.R, etc.)
+# and Python scripts (rmskhg38_annotate_gtf_update_test_tpm_cuff.py, commandsmax_speed.py, etc.)
+export TEProf2_Local_Path="/path/to/teprof2/tools"  # REQUIRED: Path to TEProf2 scripts directory on host
+
+# Optional: Override STAR path within TEProf2 container
+# If set, uses this path for STAR binary; otherwise defaults to 'STAR' in container PATH
+export TEProf2_local_STAR_Path=""  # Optional: Set to override STAR location (e.g., /usr/local/bin)
+
 # Reference Files for TEProf2 (can be same as JET if compatible)
 export TEPROF2_REF="${REF_DIR}/Homo_sapiens_assembly38.fasta"
 export TEPROF2_TE_ANNOT="${REF_DIR}/TE_annotation.gtf"
