@@ -8,3 +8,21 @@ logs/
 sample_list.txt
 sample_lists/
 processing_status_*.txt
+
+# STAR temporary directories anywhere in the project
+**/_STARtmp/
+
+# Job log outputs
+log.out
+
+# R history and related files
+.Rhistory
+.Rapp.history
+.RData
+
+# NFS temporary files
+.nfs*
+
+# Temp directories anywhere
+temp/
+**/temp/
