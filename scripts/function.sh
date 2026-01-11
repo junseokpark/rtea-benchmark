@@ -553,12 +553,12 @@ run_teprof2_aggregation() {
   # Check TEProf2 scripts with conditional path prefix
   for tool in "${teprof2_scripts[@]}"; do
     if [[ -n "${TEProf2_Local_Path}" ]]; then
-      # Check if tool exists and is executable in TEProf2_Local_Path
-      if [[ ! -x "${TEProf2_Local_Path}/${tool}" ]] && ! command -v "$tool" &>/dev/null; then
+      # When TEProf2_Local_Path is set, check if tool exists and is executable there
+      if [[ ! -x "${TEProf2_Local_Path}/${tool}" ]]; then
         missing_tools+=("$tool")
       fi
     else
-      # Check if tool is in PATH
+      # When TEProf2_Local_Path is not set, check if tool is in PATH
       if ! command -v "$tool" &>/dev/null; then
         missing_tools+=("$tool")
       fi
