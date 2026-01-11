@@ -491,7 +491,7 @@ run_teprof2() {
   
   singularity exec --bind "${bind_paths}" "${TEProf2}" bash -c '
     source activate teprof2 && \
-    annotationtpmprocess.py "'"${annotated_gtf}"'"
+    '"${TEProf2_Local_Path:+${TEProf2_Local_Path}/}"'annotationtpmprocess.py "'"${annotated_gtf}"'"
   '
 
   tpm_processed="${annotated_gtf}_annotation_tpm_processed"
@@ -522,13 +522,15 @@ run_teprof2_aggregation() {
 
   # ---------- Required variables ----------
   : "${TEPROF2_AGGREGATION_DIR:?Need TEPROF2_AGGREGATION_DIR - directory containing all TEProf2 sample outputs}"
-  : "${ARGUMENTS_TXT:?Need ARGUMENTS_TXT - path to arguments.txt file}"
+  : "${TEPROF2_ARGUMENTS_FILE:?Need TEPROF2_ARGUMENTS_FILE - path to arguments.txt file}"
   : "${RUN_COMMAND_SCRIPT:?Need RUN_COMMAND_SCRIPT - path to run_command.sh script}"
   : "${TEPROF2_CUFFMERGE_GTF:?Need TEPROF2_CUFFMERGE_GTF - path to GENCODE GTF for cuffmerge}"
 
   # Check for required tools (must be in PATH or accessible via container)
   echo "Checking for required tools..."
-  required_tools=(
+  
+  # TEProf2-specific scripts that should use TEProf2_Local_Path if set
+  teprof2_scripts=(
     "aggregateProcessedAnnotation.R"
     "filterReadCandidates.R"
     "mergeAnnotationProcess.R"
@@ -536,6 +538,10 @@ run_teprof2_aggregation() {
     "rmskhg38_annotate_gtf_update_test_tpm_cuff.py"
     "commandsmax_speed.py"
     "stringtieExpressionFrac.py"
+  )
+  
+  # System tools that should be in PATH
+  system_tools=(
     "samtools"
     "stringtie"
     "gffread"
@@ -543,7 +549,24 @@ run_teprof2_aggregation() {
   )
   
   missing_tools=()
-  for tool in "${required_tools[@]}"; do
+  
+  # Check TEProf2 scripts with conditional path prefix
+  for tool in "${teprof2_scripts[@]}"; do
+    if [[ -n "${TEProf2_Local_Path}" ]]; then
+      # Check if tool exists in TEProf2_Local_Path
+      if [[ ! -f "${TEProf2_Local_Path}/${tool}" ]] && ! command -v "$tool" &>/dev/null; then
+        missing_tools+=("$tool")
+      fi
+    else
+      # Check if tool is in PATH
+      if ! command -v "$tool" &>/dev/null; then
+        missing_tools+=("$tool")
+      fi
+    fi
+  done
+  
+  # Check system tools in PATH
+  for tool in "${system_tools[@]}"; do
     if ! command -v "$tool" &>/dev/null; then
       missing_tools+=("$tool")
     fi
@@ -578,7 +601,7 @@ run_teprof2_aggregation() {
   # Copy arguments.txt to current directory (required by run_command.sh)
   if [[ ! -f "./arguments.txt" ]]; then
     echo "Copying arguments.txt to aggregation directory..."
-    cp "${ARGUMENTS_TXT}" ./arguments.txt
+    cp "${TEPROF2_ARGUMENTS_FILE}" ./arguments.txt
   fi
 
   # Symlink all BAM files from individual sample directories to current directory

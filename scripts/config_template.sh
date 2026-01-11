@@ -70,6 +70,9 @@ export TEProf2="/home/sasidharp/jet_docker/teprof2.sif"  # Singularity container
 # and Python scripts (rmskhg38_annotate_gtf_update_test_tpm_cuff.py, commandsmax_speed.py, etc.)
 export TEProf2_Local_Path="/path/to/teprof2/tools"  # REQUIRED: Path to TEProf2 scripts directory on host
 
+# TEProf2 Configuration - Arguments file path
+export TEPROF2_ARGUMENTS_FILE="${REF_DIR}/arguments.txt"  # Path to TEProf2 arguments.txt
+
 # Optional: Override STAR path within TEProf2 container
 # If set, uses this path for STAR binary; otherwise defaults to 'STAR' in container PATH
 export TEProf2_local_STAR_Path=""  # Optional: Set to override STAR location (e.g., /usr/local/bin)
