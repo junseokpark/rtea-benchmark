@@ -407,7 +407,7 @@ run_jet_step2() {
 #   ${SAMPLE_NAME}.stringtie.gtf_annotated_filtered_test_all_annotation_tpm_processed_filtered  - Final filtered candidates
 #
 run_teprof2() {
-  set -euo pipefail
+  #set -euo pipefail
 
   echo "[$(date)] Starting TEProf2 for ${SAMPLE_NAME}"
 
@@ -417,20 +417,20 @@ run_teprof2() {
   : "${FQ2:?Need FQ2}"
   : "${SAMPLE_NAME:?Need SAMPLE_NAME}"
 
-  # Filter FASTQ files before processing
-  echo "[$(date)] Filtering FQ1: ${FQ1}"
-  if ! filtered_fq1=$(filter_broken_fastq "${FQ1}"); then
-      echo "ERROR: Failed to filter FQ1: ${FQ1}"
-      return 1
-  fi
-  FQ1="${filtered_fq1}"
+#   # Filter FASTQ files before processing
+#   echo "[$(date)] Filtering FQ1: ${FQ1}"
+#   if ! filtered_fq1=$(filter_broken_fastq "${FQ1}"); then
+#       echo "ERROR: Failed to filter FQ1: ${FQ1}"
+#       return 1
+#   fi
+#   FQ1="${filtered_fq1}"
   
-  echo "[$(date)] Filtering FQ2: ${FQ2}"
-  if ! filtered_fq2=$(filter_broken_fastq "${FQ2}"); then
-      echo "ERROR: Failed to filter FQ2: ${FQ2}"
-      return 1
-  fi
-  FQ2="${filtered_fq2}"
+#   echo "[$(date)] Filtering FQ2: ${FQ2}"
+#   if ! filtered_fq2=$(filter_broken_fastq "${FQ2}"); then
+#       echo "ERROR: Failed to filter FQ2: ${FQ2}"
+#       return 1
+#   fi
+#   FQ2="${filtered_fq2}"
 
   # Threads
   threads="${threads:-16}"
@@ -446,7 +446,7 @@ run_teprof2() {
   : "${TEProf2_Local_Path:?Need TEProf2_Local_Path for TEProf2 scripts}"
 
   # ---------- Outputs ----------
-  outRoot="${dataDir:-.}/TEProf2/${SAMPLE_NAME}"
+  outRoot="${OUTPUT_BASE:-.}/TEProf2/${SAMPLE_NAME}"
   mkdir -p "${outRoot}"
   cd "${outRoot}"
 
@@ -486,17 +486,17 @@ run_teprof2() {
   # ---------- Step 0: Align FASTQ -> sorted BAM ----------
   echo "[$(date)] Step 0: Alignment (STAR) -> BAM"
 
-  singularity exec --bind "${bind_paths}" "${TEProf2}" bash -c '
-    source activate teprof2 && \
-    '"${star_cmd}"' \
-      --runThreadN '"${threads}"' \
-      --genomeDir "'"${STAR_INDEX}"'" \
-      --readFilesIn "'"${FQ1}"'" "'"${FQ2}"'" \
-      --readFilesCommand zcat \
-      --outFileNamePrefix "'"${SAMPLE_NAME}"'." \
-      --outSAMtype BAM SortedByCoordinate \
-      --outSAMattributes NH HI AS nM XS
-  '
+# #   singularity exec --bind "${bind_paths}" "${TEProf2}" bash -c '
+# #     source activate teprof2 && \
+# #     '"${star_cmd}"' \
+# #       --runThreadN '"${threads}"' \
+# #       --genomeDir "'"${STAR_INDEX}"'" \
+# #       --readFilesIn "'"${FQ1}"'" "'"${FQ2}"'" \
+# #       --readFilesCommand zcat \
+# #       --outFileNamePrefix "'"${SAMPLE_NAME}"'." \
+# #       --outSAMtype BAM SortedByCoordinate \
+# #       --outSAMattributes NH HI AS nM XS
+# #   '
 
   BAM="${outRoot}/${SAMPLE_NAME}.Aligned.sortedByCoord.out.bam"
 

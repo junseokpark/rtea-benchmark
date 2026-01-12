@@ -14,7 +14,7 @@ set -euo pipefail
 # ============================================
 
 # Default values
-DATA_HOME="/home/junseokp/workspaces/data/rTea-simul"
+DATA_HOME="/home/junseokp/workspaces/data/rTea-simul/sims"
 OUTDIR="sample_lists"
 BATCH_SIZE=""
 TE_TYPE=""

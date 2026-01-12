@@ -68,24 +68,25 @@ export TEProf2="/home/sasidharp/jet_docker/teprof2.sif"  # Singularity container
 # Path to TEProf2 scripts/tools on the host system (to be bound into the container)
 # This directory contains R scripts (aggregateProcessedAnnotation.R, filterReadCandidates.R, etc.)
 # and Python scripts (rmskhg38_annotate_gtf_update_test_tpm_cuff.py, commandsmax_speed.py, etc.)
-export TEProf2_Local_Path="/path/to/teprof2/tools"  # REQUIRED: Path to TEProf2 scripts directory on host
+export TEProf2_Local_Path="/home/junseokp/workspaces/projects/rtea/tools/TEProf2Paper/bin"  # REQUIRED: Path to TEProf2 scripts directory on host
 
 # TEProf2 Configuration - Arguments file path
-export TEPROF2_ARGUMENTS_FILE="${REF_DIR}/arguments.txt"  # Path to TEProf2 arguments.txt
+export TEPROF2_ARGUMENTS_FILE="/home/junseokp/workspaces/projects/rtea/scripts/TEProf2.argument.txt"  # Path to TEProf2 arguments.txt
 
 # Optional: Override STAR path within TEProf2 container
 # If set, uses this path for STAR binary; otherwise defaults to 'STAR' in container PATH
-export TEProf2_local_STAR_Path=""  # Optional: Set to override STAR location (e.g., /usr/local/bin)
+export TEProf2_local_STAR_Path="/home/junseokp/workspaces/tools/STAR-2.5.3a/bin"  # Optional: Set to override STAR location (e.g., /usr/local/bin)
 
 # Reference Files for TEProf2 (can be same as JET if compatible)
-export TEPROF2_REF="${REF_DIR}/Homo_sapiens_assembly38.fasta"
-export TEPROF2_TE_ANNOT="${REF_DIR}/TE_annotation.gtf"
-export TEPROF2_GENE_ANNOT="${REF_DIR}/gencode.v46.annotation.gtf"
+export TEPROF2_REF="${REF_DIR}/Homo_sapiens_assembly38.fasta" # gencode.v46.transcripts.fa
+export TEPROF2_TE_ANNOT="${REF_DIR}/TE_annotation.gtf" # gencode.v46.chr_patch_hapl_scaff.annotation_sorted.gtf
+export TEPROF2_GENE_ANNOT="${refDir}/gencode.v46.annotation.gtf" #epeatmasker_reformat.txt
 
 # TEProf2 Pipeline-specific References (REQUIRED for per-sample processing)
-export STAR_INDEX="${REF_DIR}/STAR_hg38_index"  # REQUIRED: Prebuilt STAR index directory for TEProf2
-export GENCODE_GTF="${REF_DIR}/gencode.gtf"     # REQUIRED: GENCODE annotation GTF for StringTie
-export ARGUMENTS_TXT="${REF_DIR}/arguments.txt" # REQUIRED: TEProf2 arguments.txt file containing reference paths
+export STAR_INDEX="${refDir}/star/idx"  # REQUIRED: Prebuilt STAR index directory for TEProf2
+export GENCODE_GTF="${refDir}/gencode.v46.annotation.sorted.gtf"     # REQUIRED: GENCODE annotation GTF for StringTie
+export ARGUMENTS_TXT="${TEPROF2_ARGUMENTS_FILE}" # REQUIRED: TEProf2 arguments.txt file containing reference paths
+
 
 # ============================================
 # TEProf2 Aggregation (run_command.sh) Configuration
@@ -125,7 +126,7 @@ export RUN_COMMAND_SCRIPT="${SCRIPT_DIR:-/path/to/scripts}/run_command.sh"
 # Reference GTF for cuffmerge step in run_command.sh
 # REQUIRED: This path is hardcoded in run_command.sh (line 14) as ../genome_46/gencode.v46.basic.annotation.sorted.gtf
 # The aggregation function will create a symlink to make this work
-export TEPROF2_CUFFMERGE_GTF="${REF_DIR}/gencode.v46.basic.annotation.sorted.gtf"
+export TEPROF2_CUFFMERGE_GTF="${refDir}/gencode.v46.basic.annotation.sorted.gtf"
 
 # ============================================
 # TEProf2 Optional Arguments for aggregateProcessedAnnotation.R

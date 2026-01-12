@@ -1,0 +1,6 @@
+rmsk    /home/junseokp/workspaces/data/rTea-simul/ref/hg38/repeatmasker_custom_output-4.0.6-Dfam-2.0.bed.gz
+rmskannotationfile      /home/junseokp/workspaces/data/rTea-simul/ref/hg38/repeatmasker_hg38_description_uniq.lst
+gencodeplusdic  /home/junseokp/workspaces/data/rTea-simul/ref/hg38/genecode_plus.dic
+gencodeminusdic /home/junseokp/workspaces/data/rTea-simul/ref/hg38/genecode_minus.dic
+plusintron      /home/junseokp/workspaces/data/rTea-simul/ref/hg38/gencode.v46.annotation.sorted.gtf_introns_plus_sorted.gz
+minusintron     /home/junseokp/workspaces/data/rTea-simul/ref/hg38/gencode.v46.annotation.sorted.gtf_introns_minus_sorted.gz

@@ -206,6 +206,7 @@ setup_test_environment() {
     print_header "Setting Up Test Environment"
     
     # Create test directories
+    export OUTPUT_BASE="${TEST_LOG_DIR}/test_output"
     export outputDir="${TEST_LOG_DIR}/test_output"
     export SAMPLE_NAME="sim200_AluY_blood"
     local sample_rel_path="nonReferenceTE/AluY/5X/fq"
