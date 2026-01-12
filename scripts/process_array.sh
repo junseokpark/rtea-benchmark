@@ -93,7 +93,7 @@ while [[ $# -gt 0 ]]; do
             shift
             # Collect all tool names until we hit another option or run out of args
             TOOLS=""
-            while [[ $# -gt 0 ]] && [[ ! "$1" =~ ^-- ]]; do
+            while [[ $# -gt 0 ]] && [[ ! "$1" =~ ^--.* ]]; do
                 if [[ "$1" == "JET2" ]] || [[ "$1" == "TEProf2" ]]; then
                     TOOLS="${TOOLS}${TOOLS:+ }$1"
                     shift

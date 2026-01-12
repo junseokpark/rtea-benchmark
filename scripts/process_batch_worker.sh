@@ -96,6 +96,12 @@ mkdir -p logs
 # Source shared functions
 source "${SCRIPT_DIR}/function.sh"
 
+# Helper function to check if a tool is in the TOOLS list
+contains_tool() {
+    local tool="$1"
+    [[ "${TOOLS}" =~ (^|[[:space:]])${tool}([[:space:]]|$) ]]
+}
+
 # Determine which tools to run based on TOOLS variable
 # If TOOLS is empty or not set, run all tools (default behavior)
 RUN_JET2=false
@@ -107,11 +113,11 @@ if [[ -z "${TOOLS:-}" ]]; then
     RUN_TEPROF2=true
 else
     # Check if TOOLS contains JET2
-    if [[ "${TOOLS}" =~ (^|[[:space:]])JET2([[:space:]]|$) ]]; then
+    if contains_tool "JET2"; then
         RUN_JET2=true
     fi
     # Check if TOOLS contains TEProf2
-    if [[ "${TOOLS}" =~ (^|[[:space:]])TEProf2([[:space:]]|$) ]]; then
+    if contains_tool "TEProf2"; then
         RUN_TEPROF2=true
     fi
 fi
