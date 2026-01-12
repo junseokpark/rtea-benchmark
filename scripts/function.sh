@@ -360,7 +360,52 @@ run_jet_step2() {
     return 0
 }
 
-# Function to run TEProf2
+# Function to run TEProf2 - Complete TE expression profiling pipeline
+#
+# Performs TE (transposable element) expression analysis including:
+# 1. FASTQ filtering and quality control
+# 2. STAR alignment to reference genome
+# 3. StringTie transcript assembly
+# 4. TEProf2 RepeatMasker annotation
+# 5. TPM (transcripts per million) processing
+# 6. Read candidate filtering
+#
+# Required environment variables:
+#   FQ1                     - Path to first FASTQ file (read 1), gzipped (.fq.gz or .fastq.gz)
+#   FQ2                     - Path to second FASTQ file (read 2), gzipped (.fq.gz or .fastq.gz)
+#   SAMPLE_NAME             - Sample name/identifier (used for output naming and error reporting)
+#   refDir                  - Base reference directory path (used as default location for reference files)
+#   TEProf2                 - Path to TEProf2 singularity container image (e.g., /path/to/teprof2.sif)
+#   TEProf2_Local_Path      - Path to TEProf2 scripts directory containing:
+#                             * rmskhg38_annotate_gtf_update_test_tpm.py
+#                             * annotationtpmprocess.py
+#                             * filterReadCandidates.R
+#
+# Optional environment variables (with defaults):
+#   threads                 - Number of CPU threads for parallel processing (default: 16)
+#   STAR_INDEX              - Path to prebuilt STAR genome index directory (default: ${refDir}/STAR_hg38_index)
+#   GENCODE_GTF             - Path to GENCODE annotation GTF file for StringTie (default: ${refDir}/gencode.gtf)
+#   ARGUMENTS_TXT           - Path to TEProf2 arguments.txt configuration file (default: ${refDir}/arguments.txt)
+#                             This file must contain paths to RepeatMasker annotations and other TEProf2 references
+#   dataDir                 - Data output base directory (default: current directory '.')
+#                             Output will be written to ${dataDir}/TEProf2/${SAMPLE_NAME}
+#   TEProf2_local_STAR_Path - Path to STAR binary within container (optional override, default: uses 'STAR' in PATH)
+#
+# Required files (paths specified via environment variables):
+#   ARGUMENTS_TXT           - TEProf2 configuration file with tab-delimited entries:
+#                             * rmsk: path to RepeatMasker BED6 file (tabix-indexed)
+#                             * rmskannotationfile: TE subfamily/class/family descriptions
+#                             * gencodeplusdic: GENCODE plus strand dictionary
+#                             * gencodeminusdic: GENCODE minus strand dictionary
+#
+# Output files (created in ${dataDir}/TEProf2/${SAMPLE_NAME}/):
+#   ${SAMPLE_NAME}.Aligned.sortedByCoord.out.bam      - Sorted BAM alignment file
+#   ${SAMPLE_NAME}.Aligned.sortedByCoord.out.bam.bai  - BAM index file
+#   ${SAMPLE_NAME}.stringtie.gtf                      - Assembled transcripts
+#   ${SAMPLE_NAME}.stringtie.gtf_annotated_filtered_test_all        - Annotated with RepeatMasker TEs
+#   ${SAMPLE_NAME}.stringtie.gtf_annotated_filtered_test_all_annotation_tpm_processed  - TPM processed
+#   ${SAMPLE_NAME}.stringtie.gtf_annotated_filtered_test_all_annotation_tpm_processed_filtered  - Final filtered candidates
+#
 run_teprof2() {
   set -euo pipefail
 
@@ -513,8 +558,87 @@ run_teprof2() {
 }
 
 # Function to run TEProf2 aggregation across all samples
-# This should be called AFTER all individual samples have been processed
-# It executes run_command.sh which performs cross-sample analysis
+#
+# Aggregates results from individual TEProf2 sample analyses to identify
+# TE-derived transcripts across the entire dataset. This function MUST be
+# called AFTER all individual samples have been processed with run_teprof2().
+#
+# The aggregation pipeline performs the following steps:
+# 1. Aggregates processed annotations from all samples
+# 2. Filters candidates based on read support across samples
+# 3. Merges candidate transcripts with reference annotations using cuffmerge
+# 4. Quantifies expression levels (TPM and fraction) across all samples
+# 5. Generates final statistics and candidate lists
+#
+# Required environment variables:
+#   TEPROF2_AGGREGATION_DIR  - Output directory for aggregation results
+#                              All aggregated output files will be written here
+#   TEPROF2_ARGUMENTS_FILE   - Path to TEProf2 arguments.txt configuration file
+#                              Same file used in individual sample processing
+#                              Must contain tab-delimited entries:
+#                              * rmsk: RepeatMasker BED6 file (tabix-indexed)
+#                              * rmskannotationfile: TE descriptions (subfamily, class, family)
+#                              * gencodeplusdic: GENCODE plus strand dictionary
+#                              * gencodeminusdic: GENCODE minus strand dictionary
+#   RUN_COMMAND_SCRIPT       - Path to run_command.sh script (included in repository)
+#                              This script orchestrates the aggregation pipeline
+#                              Location: scripts/run_command.sh
+#   TEPROF2_CUFFMERGE_GTF    - Path to GENCODE GTF file for cuffmerge reference merging
+#                              Used by cuffmerge to merge candidate transcripts with reference
+#                              (e.g., gencode.v46.basic.annotation.sorted.gtf)
+#   dataDir                  - Base directory containing all processed TEProf2 sample outputs
+#                              Function will search recursively for:
+#                              * *.bam files (alignment files from each sample)
+#                              * *_annotated_filtered_test_all files (processed annotations)
+#
+# Optional environment variables:
+#   TEProf2_Local_Path       - Path to TEProf2 scripts directory (optional)
+#                              If set, tools will be located at ${TEProf2_Local_Path}/<tool>
+#                              If not set, tools must be in system PATH
+#                              Required tools/scripts:
+#                              * aggregateProcessedAnnotation.R
+#                              * filterReadCandidates.R
+#                              * mergeAnnotationProcess.R
+#                              * finalStatisticsOutput.R
+#                              * rmskhg38_annotate_gtf_update_test_tpm_cuff.py
+#                              * commandsmax_speed.py
+#                              * stringtieExpressionFrac.py
+#
+# Required tools (must be in PATH or accessible via TEProf2 container):
+#   System tools:
+#     * samtools              - BAM file manipulation
+#     * stringtie             - Transcript assembly and quantification
+#     * gffread               - GFF/GTF format conversion
+#     * cuffmerge             - Merging transcript assemblies with reference
+#
+# Configuration note:
+#   The aggregation parameters are HARDCODED in run_command.sh and cannot be
+#   configured via command-line arguments. To customize filtering parameters
+#   (e.g., min reads, exon skip max, treatment filtering), you must either:
+#   1. Edit run_command.sh directly to pass custom parameters to R/Python scripts, OR
+#   2. Run the R/Python scripts individually with custom parameters
+#
+#   For reference, common configurable parameters (see config_template.sh):
+#     * TEPROF2_AGG_EXON1_LENGTH_MAX (default: 2588)
+#     * TEPROF2_AGG_EXON_SKIP_MAX (default: 2)
+#     * TEPROF2_AGG_SAMPLE_TOTAL_MIN (default: 1)
+#     * TEPROF2_FILTER_MIN_READS_IN_TE (default: 10)
+#     * TEPROF2_FILTER_MIN_START_READ (default: 1)
+#     * TEPROF2_FILTER_DISTANCE_TE (default: 2500)
+#
+# Output files (created in TEPROF2_AGGREGATION_DIR):
+#   filter_combined_candidates.tsv       - All TE-gene transcript candidates
+#   initial_candidate_list.tsv           - Summary of unique candidates
+#   read_filtered_candidates.tsv         - Candidates passing read support filters
+#   candidate_transcripts.gff3           - GFF3 format of detected transcripts
+#   candidate_transcripts.gtf            - GTF format of detected transcripts
+#   reference_merged_candidates.gtf      - Candidates merged with reference annotations
+#   reference_merged_candidates.gff3     - GFF3 version of merged candidates
+#   table_frac_tot_cand                  - Fraction of expression per candidate across samples
+#   table_tpm_cand                       - TPM values per candidate across samples
+#   table_i_all                          - Intron coverage table
+#   Final_output_unique_novel_start_annotated  - Final statistics and annotations
+#
 run_teprof2_aggregation() {
   set -euo pipefail
 
