@@ -29,6 +29,7 @@ SAMPLE_LIST_DIR=""
 PARTITION=""
 JOB_NAME="TE_batch"
 FORCE=false
+TOOLS=""
 
 # Usage function
 usage() {
@@ -41,6 +42,8 @@ OPTIONS:
     --sample_list_dir DIR    Directory containing *.list files (required)
     --partition NAME         SLURM partition name (optional)
     --job_name PREFIX        Job name prefix (default: TE_batch)
+    --tools TOOL [TOOL...]   Select which tools to run: JET2, TEProf2, or both
+                             (default: run all tools)
     --force                  Resubmit all jobs, ignoring tracking file
     --help                   Show this help message
 
@@ -50,6 +53,15 @@ EXAMPLES:
 
     # Submit to specific partition
     $0 --sample_list_dir sample_lists/L1/30x --partition compute
+
+    # Run only JET2 pipeline
+    $0 --sample_list_dir sample_lists/L1/30x --tools JET2
+
+    # Run only TEProf2 pipeline
+    $0 --sample_list_dir sample_lists/L1/30x --tools TEProf2
+
+    # Run both pipelines (explicit)
+    $0 --sample_list_dir sample_lists/L1/30x --tools JET2 TEProf2
 
     # Force resubmission of all jobs
     $0 --sample_list_dir sample_lists/L1/30x --force
@@ -76,6 +88,26 @@ while [[ $# -gt 0 ]]; do
         --job_name)
             JOB_NAME="$2"
             shift 2
+            ;;
+        --tools)
+            shift
+            # Collect all tool names until we hit another option or run out of args
+            TOOLS=""
+            while [[ $# -gt 0 ]] && [[ ! "$1" =~ ^--.* ]]; do
+                if [[ "$1" == "JET2" ]] || [[ "$1" == "TEProf2" ]]; then
+                    TOOLS="${TOOLS}${TOOLS:+ }$1"
+                    shift
+                else
+                    echo "ERROR: Invalid tool name: $1"
+                    echo "Valid tools are: JET2, TEProf2"
+                    exit 1
+                fi
+            done
+            if [[ -z "${TOOLS}" ]]; then
+                echo "ERROR: --tools requires at least one tool name"
+                echo "Valid tools are: JET2, TEProf2"
+                exit 1
+            fi
             ;;
         --force)
             FORCE=true
@@ -141,6 +173,7 @@ echo "Job name prefix: ${JOB_NAME}"
 echo "Time limit: ${BATCH_TIME}"
 echo "Memory: ${BATCH_MEM}"
 echo "CPUs: ${BATCH_CPUS}"
+[[ -n "${TOOLS}" ]] && echo "Tools to run: ${TOOLS}" || echo "Tools to run: all (JET2 and TEProf2)"
 echo "Force resubmit: ${FORCE}"
 echo "========================================="
 echo ""
@@ -222,6 +255,11 @@ for list_file in "${LIST_FILES[@]}"; do
     # Add partition if specified
     if [[ -n "${PARTITION}" ]]; then
         sbatch_cmd="${sbatch_cmd} --partition=${PARTITION}"
+    fi
+    
+    # Export TOOLS variable if specified
+    if [[ -n "${TOOLS}" ]]; then
+        sbatch_cmd="${sbatch_cmd} --export=ALL,TOOLS='${TOOLS}'"
     fi
     
     # Add worker script and sample list file
