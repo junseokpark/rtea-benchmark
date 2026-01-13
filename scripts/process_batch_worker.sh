@@ -45,6 +45,8 @@ echo ""
 # Determine script directory
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+echo "Script directory: $SCRIPT_DIR"
+
 # Load configuration
 if [[ -f "${SCRIPT_DIR}/config.sh" ]]; then
     echo "Loading configuration from config.sh..."

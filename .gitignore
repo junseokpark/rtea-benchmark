@@ -8,8 +8,6 @@ logs/
 sample_list.txt
 sample_lists/
 processing_status_*.txt
-temp/
-tools/
 
 # STAR temporary directories anywhere in the project
 **/_STARtmp/
@@ -28,3 +26,7 @@ log.out
 # Temp directories anywhere
 temp/
 **/temp/
+
+# Tool Directories
+tools/
+**/tools/
