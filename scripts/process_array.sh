@@ -96,6 +96,10 @@ while [[ $# -gt 0 ]]; do
             shift 2
             ;;
         --script_dir)
+            if [[ -z "${2:-}" ]] || [[ "$2" =~ ^--.* ]]; then
+                echo "ERROR: --script_dir requires a directory path"
+                exit 1
+            fi
             SCRIPT_DIR="$2"
             shift 2
             ;;
@@ -143,6 +147,13 @@ fi
 
 if [[ ! -d "${SAMPLE_LIST_DIR}" ]]; then
     echo "ERROR: Sample list directory not found: ${SAMPLE_LIST_DIR}"
+    exit 1
+fi
+
+# Validate SCRIPT_DIR if it was explicitly set
+# (Only validate if user provided it; auto-detected paths are trusted)
+if [[ -n "${SCRIPT_DIR:-}" ]] && [[ ! -d "${SCRIPT_DIR}" ]]; then
+    echo "ERROR: Script directory not found: ${SCRIPT_DIR}"
     exit 1
 fi
 
