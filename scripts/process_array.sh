@@ -13,6 +13,7 @@ set -euo pipefail
 #   --sample_list_dir DIR    Directory containing *.list files (required)
 #   --partition NAME         SLURM partition (default: from batch-config.sh)
 #   --job_name PREFIX        Job name prefix (default: TE_batch)
+#   --script_dir DIR         Script directory path (optional, auto-detected if not provided)
 #   --force                  Resubmit all jobs, even if already tracked
 #   --help                   Show help message
 #
@@ -22,7 +23,11 @@ set -euo pipefail
 # ============================================
 
 # Determine script directory
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Allow SCRIPT_DIR to be provided by user (via environment variable or --script_dir option)
+# If not provided, auto-detect from the script location (backwards compatible)
+if [[ -z "${SCRIPT_DIR:-}" ]]; then
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+fi
 
 # Default values
 SAMPLE_LIST_DIR=""
@@ -42,6 +47,7 @@ OPTIONS:
     --sample_list_dir DIR    Directory containing *.list files (required)
     --partition NAME         SLURM partition name (optional)
     --job_name PREFIX        Job name prefix (default: TE_batch)
+    --script_dir DIR         Script directory path (optional, auto-detected if not provided)
     --tools TOOL [TOOL...]   Select which tools to run: JET2, TEProf2, or both
                              (default: run all tools)
     --force                  Resubmit all jobs, ignoring tracking file
@@ -87,6 +93,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         --job_name)
             JOB_NAME="$2"
+            shift 2
+            ;;
+        --script_dir)
+            SCRIPT_DIR="$2"
             shift 2
             ;;
         --tools)
@@ -258,9 +268,12 @@ for list_file in "${LIST_FILES[@]}"; do
     fi
     
     # Export TOOLS variable if specified
+    # Always export SCRIPT_DIR so worker script can use it
+    export_vars="ALL,SCRIPT_DIR='${SCRIPT_DIR}'"
     if [[ -n "${TOOLS}" ]]; then
-        sbatch_cmd="${sbatch_cmd} --export=ALL,TOOLS='${TOOLS}'"
+        export_vars="${export_vars},TOOLS='${TOOLS}'"
     fi
+    sbatch_cmd="${sbatch_cmd} --export=${export_vars}"
     
     # Add worker script and sample list file
     sbatch_cmd="${sbatch_cmd} ${SCRIPT_DIR}/process_batch_worker.sh ${list_file}"

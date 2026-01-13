@@ -43,7 +43,11 @@ echo "========================================="
 echo ""
 
 # Determine script directory
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Use SCRIPT_DIR from parent script (process_array.sh) if provided
+# Otherwise, auto-detect from the script location (backwards compatible)
+if [[ -z "${SCRIPT_DIR:-}" ]]; then
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+fi
 
 echo "Script directory: $SCRIPT_DIR"
 
