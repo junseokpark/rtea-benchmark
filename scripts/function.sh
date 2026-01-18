@@ -392,7 +392,9 @@ run_jet_step2() {
 #   TEProf2_local_STAR_Path - Path to STAR binary within container (optional override, default: uses 'STAR' in PATH)
 #   STAR_READ_CMD           - Command to read FASTQ files (default: zcat for gzipped files)
 #   STAR_EXTRA_ARGS         - Additional arguments to pass to STAR (default: empty)
+#                             WARNING: This variable is passed directly to the command. Only use trusted values.
 #   STRINGTIE_EXTRA_ARGS    - Additional arguments to pass to StringTie (default: empty)
+#                             WARNING: This variable is passed directly to the command. Only use trusted values.
 #   RMSK_ANNOTATE_SCRIPT    - Name of RepeatMasker annotation script (default: rmskhg38_annotate_gtf_update_test_tpm.py)
 #   TPM_PROCESS_SCRIPT      - Name of TPM processing script (default: annotationtpmprocess.py)
 #   FILTER_CANDIDATES_SCRIPT - Name of read candidate filtering script (default: filterReadCandidates.R)
@@ -458,8 +460,9 @@ run_teprof2() {
   # Add additional directories if they are different from refDir and not already in bind_paths
   for path in "${STAR_INDEX}" "${GENCODE_GTF}" "${ARGUMENTS_TXT}"; do
     local dir=$(dirname "$path")
-    if [[ "$dir" != "${refDir}" ]] && [[ ! "$bind_paths" =~ (^|,)"$dir"(,|$) ]]; then
-      bind_paths="${bind_paths},$dir"
+    # Use exact matching with comma delimiters to avoid false positives
+    if [[ "$dir" != "${refDir}" ]] && [[ ",${bind_paths}," != *",${dir},"* ]]; then
+      bind_paths="${bind_paths},${dir}"
     fi
   done
 
