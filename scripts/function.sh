@@ -387,9 +387,17 @@ run_jet_step2() {
 #   GENCODE_GTF             - Path to GENCODE annotation GTF file for StringTie (default: ${refDir}/gencode.gtf)
 #   ARGUMENTS_TXT           - Path to TEProf2 arguments.txt configuration file (default: ${refDir}/arguments.txt)
 #                             This file must contain paths to RepeatMasker annotations and other TEProf2 references
-#   dataDir                 - Data output base directory (default: current directory '.')
-#                             Output will be written to ${dataDir}/TEProf2/${SAMPLE_NAME}
+#   OUTPUT_BASE             - Data output base directory (default: current directory '.')
+#                             Output will be written to ${OUTPUT_BASE}/TEProf2/${SAMPLE_NAME}
 #   TEProf2_local_STAR_Path - Path to STAR binary within container (optional override, default: uses 'STAR' in PATH)
+#   STAR_READ_CMD           - Command to read FASTQ files (default: zcat for gzipped files)
+#   STAR_EXTRA_ARGS         - Additional arguments to pass to STAR (default: empty)
+#                             WARNING: This variable is passed directly to the command. Only use trusted values.
+#   STRINGTIE_EXTRA_ARGS    - Additional arguments to pass to StringTie (default: empty)
+#                             WARNING: This variable is passed directly to the command. Only use trusted values.
+#   RMSK_ANNOTATE_SCRIPT    - Name of RepeatMasker annotation script (default: rmskhg38_annotate_gtf_update_test_tpm.py)
+#   TPM_PROCESS_SCRIPT      - Name of TPM processing script (default: annotationtpmprocess.py)
+#   FILTER_CANDIDATES_SCRIPT - Name of read candidate filtering script (default: filterReadCandidates.R)
 #
 # Required files (paths specified via environment variables):
 #   ARGUMENTS_TXT           - TEProf2 configuration file with tab-delimited entries:
@@ -398,7 +406,7 @@ run_jet_step2() {
 #                             * gencodeplusdic: GENCODE plus strand dictionary
 #                             * gencodeminusdic: GENCODE minus strand dictionary
 #
-# Output files (created in ${dataDir}/TEProf2/${SAMPLE_NAME}/):
+# Output files (created in ${OUTPUT_BASE}/TEProf2/${SAMPLE_NAME}/):
 #   ${SAMPLE_NAME}.Aligned.sortedByCoord.out.bam      - Sorted BAM alignment file
 #   ${SAMPLE_NAME}.Aligned.sortedByCoord.out.bam.bai  - BAM index file
 #   ${SAMPLE_NAME}.stringtie.gtf                      - Assembled transcripts
@@ -407,106 +415,89 @@ run_jet_step2() {
 #   ${SAMPLE_NAME}.stringtie.gtf_annotated_filtered_test_all_annotation_tpm_processed_filtered  - Final filtered candidates
 #
 run_teprof2() {
-  #set -euo pipefail
+  set -euo pipefail
 
   echo "[$(date)] Starting TEProf2 for ${SAMPLE_NAME}"
 
   # ---------- Required variables ----------
-  # Inputs
   : "${FQ1:?Need FQ1}"
   : "${FQ2:?Need FQ2}"
   : "${SAMPLE_NAME:?Need SAMPLE_NAME}"
-
-#   # Filter FASTQ files before processing
-#   echo "[$(date)] Filtering FQ1: ${FQ1}"
-#   if ! filtered_fq1=$(filter_broken_fastq "${FQ1}"); then
-#       echo "ERROR: Failed to filter FQ1: ${FQ1}"
-#       return 1
-#   fi
-#   FQ1="${filtered_fq1}"
-  
-#   echo "[$(date)] Filtering FQ2: ${FQ2}"
-#   if ! filtered_fq2=$(filter_broken_fastq "${FQ2}"); then
-#       echo "ERROR: Failed to filter FQ2: ${FQ2}"
-#       return 1
-#   fi
-#   FQ2="${filtered_fq2}"
+  : "${refDir:?Need refDir}"
 
   # Threads
   threads="${threads:-16}"
 
   # References
-  : "${refDir:?Need refDir}"
-  STAR_INDEX="${STAR_INDEX:-${refDir}/STAR_hg38_index}"   # prebuilt STAR index dir
-  GENCODE_GTF="${GENCODE_GTF:-${refDir}/gencode.gtf}"     # used by StringTie + cuffmerge
-  ARGUMENTS_TXT="${ARGUMENTS_TXT:-${refDir}/arguments.txt}"  # TEProf2 arguments.txt
+  STAR_INDEX="${STAR_INDEX:-${refDir}/STAR_hg38_index}"
+  GENCODE_GTF="${GENCODE_GTF:-${refDir}/gencode.gtf}"
+  ARGUMENTS_TXT="${ARGUMENTS_TXT:-${refDir}/arguments.txt}"
 
   # TEProf2 Singularity container and paths
   : "${TEProf2:?Need TEProf2 singularity container path}"
   : "${TEProf2_Local_Path:?Need TEProf2_Local_Path for TEProf2 scripts}"
 
+  # Script path parameterization
+  STAR_READ_CMD="${STAR_READ_CMD:-zcat}"
+  STAR_EXTRA_ARGS="${STAR_EXTRA_ARGS:-}"
+  STRINGTIE_EXTRA_ARGS="${STRINGTIE_EXTRA_ARGS:-}"
+  RMSK_ANNOTATE_SCRIPT="${RMSK_ANNOTATE_SCRIPT:-rmskhg38_annotate_gtf_update_test_tpm.py}"
+  TPM_PROCESS_SCRIPT="${TPM_PROCESS_SCRIPT:-annotationtpmprocess.py}"
+  FILTER_CANDIDATES_SCRIPT="${FILTER_CANDIDATES_SCRIPT:-filterReadCandidates.R}"
+
   # ---------- Outputs ----------
   outRoot="${OUTPUT_BASE:-.}/TEProf2/${SAMPLE_NAME}"
-  mkdir -p "${outRoot}"
-  cd "${outRoot}"
+  mkdir -p "${outRoot}" || { echo "ERROR: Failed to create output directory: ${outRoot}"; return 1; }
+  cd "${outRoot}" || { echo "ERROR: Failed to change to output directory: ${outRoot}"; return 1; }
 
   # Determine bind paths for singularity
-  # Need to bind directories containing FQ1, FQ2, output, reference files, and TEProf2 scripts
   local fq1_dir=$(dirname "${FQ1}")
   local fq2_dir=$(dirname "${FQ2}")
-  local star_index_dir=$(dirname "${STAR_INDEX}")
-  local gencode_gtf_dir=$(dirname "${GENCODE_GTF}")
-  local arguments_dir=$(dirname "${ARGUMENTS_TXT}")
-
-  # Build bind_paths - include all necessary directories
   local bind_paths="${TEProf2_Local_Path},${outRoot},${refDir},${fq1_dir}"
   
-  # Add FQ2 directory if different from FQ1
-  if [[ "${fq2_dir}" != "${fq1_dir}" ]]; then
-    bind_paths="${bind_paths},${fq2_dir}"
-  fi
+  [[ "${fq2_dir}" != "${fq1_dir}" ]] && bind_paths="${bind_paths},${fq2_dir}"
   
-  # Add additional directories if they are different from refDir
-  if [[ "${star_index_dir}" != "${refDir}" ]]; then
-    bind_paths="${bind_paths},${star_index_dir}"
-  fi
-  if [[ "${gencode_gtf_dir}" != "${refDir}" ]]; then
-    bind_paths="${bind_paths},${gencode_gtf_dir}"
-  fi
-  if [[ "${arguments_dir}" != "${refDir}" ]]; then
-    bind_paths="${bind_paths},${arguments_dir}"
-  fi
+  # Add additional directories if they are different from refDir and not already in bind_paths
+  for path in "${STAR_INDEX}" "${GENCODE_GTF}" "${ARGUMENTS_TXT}"; do
+    local dir=$(dirname "$path")
+    # Use exact matching with comma delimiters to avoid false positives
+    if [[ "$dir" != "${refDir}" ]] && [[ ",${bind_paths}," != *",${dir},"* ]]; then
+      bind_paths="${bind_paths},${dir}"
+    fi
+  done
 
   # Determine STAR binary path
   local star_cmd="STAR"
-  if [[ -n "${TEProf2_local_STAR_Path:-}" ]]; then
-    star_cmd="${TEProf2_local_STAR_Path}/STAR"
-  fi
+  [[ -n "${TEProf2_local_STAR_Path:-}" ]] && star_cmd="${TEProf2_local_STAR_Path}/STAR"
 
   # ---------- Step 0: Align FASTQ -> sorted BAM ----------
-  echo "[$(date)] Step 0: Alignment (STAR) -> BAM"
-
-# #   singularity exec --bind "${bind_paths}" "${TEProf2}" bash -c '
-# #     source activate teprof2 && \
-# #     '"${star_cmd}"' \
-# #       --runThreadN '"${threads}"' \
-# #       --genomeDir "'"${STAR_INDEX}"'" \
-# #       --readFilesIn "'"${FQ1}"'" "'"${FQ2}"'" \
-# #       --readFilesCommand zcat \
-# #       --outFileNamePrefix "'"${SAMPLE_NAME}"'." \
-# #       --outSAMtype BAM SortedByCoordinate \
-# #       --outSAMattributes NH HI AS nM XS
-# #   '
+  echo "[$(date)] [Step 0] STAR alignment"
 
   BAM="${outRoot}/${SAMPLE_NAME}.Aligned.sortedByCoord.out.bam"
 
+  singularity exec --bind "${bind_paths}" "${TEProf2}" bash -c '
+    source activate teprof2 && \
+    '"${star_cmd}"' \
+      --runThreadN '"${threads}"' \
+      --genomeDir "'"${STAR_INDEX}"'" \
+      --readFilesIn "'"${FQ1}"'" "'"${FQ2}"'" \
+      --readFilesCommand '"${STAR_READ_CMD}"' \
+      --outFileNamePrefix "'"${SAMPLE_NAME}"'." \
+      --outSAMtype BAM SortedByCoordinate \
+      --outSAMattributes NH HI AS nM XS \
+      '"${STAR_EXTRA_ARGS}"'
+  '
+
+  [[ -f "${BAM}" ]] || { echo "ERROR: STAR alignment failed - BAM not created: ${BAM}"; return 1; }
+
+  echo "[$(date)] [Step 0.5] BAM indexing"
   singularity exec --bind "${bind_paths}" "${TEProf2}" bash -c '
     source activate teprof2 && \
     samtools index -@ '"${threads}"' "'"${BAM}"'"
   '
 
   # ---------- Step 1: Assemble transcripts -> sample GTF ----------
-  echo "[$(date)] Step 1: Transcript assembly (StringTie) -> GTF"
+  echo "[$(date)] [Step 1] Transcript assembly (StringTie) -> GTF"
 
   SAMPLE_GTF="${outRoot}/${SAMPLE_NAME}.stringtie.gtf"
 
@@ -515,15 +506,18 @@ run_teprof2() {
     stringtie "'"${BAM}"'" \
       -p '"${threads}"' \
       -G "'"${GENCODE_GTF}"'" \
-      -o "'"${SAMPLE_GTF}"'"
+      -o "'"${SAMPLE_GTF}"'" \
+      '"${STRINGTIE_EXTRA_ARGS}"'
   '
 
-  # ---------- Step 2: TEProf2 annotation (normal) ----------
-  echo "[$(date)] Step 2: TEProf2 RepeatMasker annotation"
+  [[ -f "${SAMPLE_GTF}" ]] || { echo "ERROR: StringTie assembly failed - GTF not created: ${SAMPLE_GTF}"; return 1; }
+
+  # ---------- Step 2: TEProf2 annotation ----------
+  echo "[$(date)] [Step 2] TEProf2 RepeatMasker annotation"
 
   singularity exec --bind "${bind_paths}" "${TEProf2}" bash -c '
     source activate teprof2 && \
-    '"${TEProf2_Local_Path}"'/rmskhg38_annotate_gtf_update_test_tpm.py \
+    '"${TEProf2_Local_Path}"'/'"${RMSK_ANNOTATE_SCRIPT}"' \
       "'"${SAMPLE_GTF}"'" \
       "'"${ARGUMENTS_TXT}"'"
   '
@@ -532,22 +526,22 @@ run_teprof2() {
   [[ -f "${annotated_gtf}" ]] || { echo "ERROR: missing ${annotated_gtf}"; return 1; }
 
   # ---------- Step 3: TPM processing ----------
-  echo "[$(date)] Step 3: TPM processing"
+  echo "[$(date)] [Step 3] TPM processing"
   
   singularity exec --bind "${bind_paths}" "${TEProf2}" bash -c '
     source activate teprof2 && \
-    '"${TEProf2_Local_Path:+${TEProf2_Local_Path}/}"'annotationtpmprocess.py "'"${annotated_gtf}"'"
+    '"${TEProf2_Local_Path}"'/'"${TPM_PROCESS_SCRIPT}"' "'"${annotated_gtf}"'"
   '
 
   tpm_processed="${annotated_gtf}_annotation_tpm_processed"
   [[ -f "${tpm_processed}" ]] || { echo "ERROR: missing ${tpm_processed}"; return 1; }
 
   # ---------- Step 4: Filter read candidates ----------
-  echo "[$(date)] Step 4: Filter read candidates"
+  echo "[$(date)] [Step 4] Filter read candidates"
   
   singularity exec --bind "${bind_paths}" "${TEProf2}" bash -c '
     source activate teprof2 && \
-    '"${TEProf2_Local_Path}"'/filterReadCandidates.R "'"${tpm_processed}"'" "'"${BAM}"'"
+    '"${TEProf2_Local_Path}"'/'"${FILTER_CANDIDATES_SCRIPT}"' "'"${tpm_processed}"'" "'"${BAM}"'"
   '
 
   filtered_output="${tpm_processed}_filtered"
