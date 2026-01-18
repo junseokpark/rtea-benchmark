@@ -445,7 +445,8 @@ run_teprof2() {
 
   # ---------- Outputs ----------
   outRoot="${OUTPUT_BASE:-.}/TEProf2/${SAMPLE_NAME}"
-  mkdir -p "${outRoot}" && cd "${outRoot}"
+  mkdir -p "${outRoot}" || { echo "ERROR: Failed to create output directory: ${outRoot}"; return 1; }
+  cd "${outRoot}" || { echo "ERROR: Failed to change to output directory: ${outRoot}"; return 1; }
 
   # Determine bind paths for singularity
   local fq1_dir=$(dirname "${FQ1}")
@@ -454,10 +455,12 @@ run_teprof2() {
   
   [[ "${fq2_dir}" != "${fq1_dir}" ]] && bind_paths="${bind_paths},${fq2_dir}"
   
-  # Add additional directories if they are different from refDir
+  # Add additional directories if they are different from refDir and not already in bind_paths
   for path in "${STAR_INDEX}" "${GENCODE_GTF}" "${ARGUMENTS_TXT}"; do
     local dir=$(dirname "$path")
-    [[ "$dir" != "${refDir}" ]] && bind_paths="${bind_paths},$dir"
+    if [[ "$dir" != "${refDir}" ]] && [[ ! "$bind_paths" =~ (^|,)"$dir"(,|$) ]]; then
+      bind_paths="${bind_paths},$dir"
+    fi
   done
 
   # Determine STAR binary path
